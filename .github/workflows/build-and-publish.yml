@@ -2,7 +2,7 @@ name: Build and Publish
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
     tags: [ 'v*.*.*' ]
     paths:
       - 'dotnet/**'
@@ -19,6 +19,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
+    - name: Checkout a2a-dotnet SDK
+      uses: actions/checkout@v4
+      with:
+        repository: a2aproject/a2a-dotnet
+        ref: darrelmiller/issue-331-version-negotiation
+        path: ../a2a/a2a-dotnet
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -42,6 +49,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
+    - name: Checkout a2a-dotnet SDK
+      uses: actions/checkout@v4
+      with:
+        repository: a2aproject/a2a-dotnet
+        ref: darrelmiller/issue-331-version-negotiation
+        path: ../a2a/a2a-dotnet
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
