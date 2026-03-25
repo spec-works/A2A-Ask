@@ -1,0 +1,145 @@
+name: Build and Publish
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
+    paths:
+      - 'dotnet/**'
+      - '.github/workflows/build-and-publish.yml'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  PROJECT_PATH: dotnet/src/A2A-Ask/A2A-Ask.csproj
+  TEST_PATH: dotnet
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore
+      working-directory: ${{ env.TEST_PATH }}
+      run: dotnet restore
+
+    - name: Build
+      working-directory: ${{ env.TEST_PATH }}
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Test
+      working-directory: ${{ env.TEST_PATH }}
+      run: dotnet test --no-build --configuration Release --verbosity normal
+
+  pack:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Determine version
+      id: version
+      run: |
+        if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_release=true" >> $GITHUB_OUTPUT
+        else
+          echo "version=0.0.1-preview.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "is_release=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Pack
+      run: |
+        dotnet pack ${{ env.PROJECT_PATH }} \
+          --configuration Release \
+          --output ./artifacts \
+          /p:Version=${{ steps.version.outputs.version }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./artifacts/*.nupkg
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_release: ${{ steps.version.outputs.is_release }}
+
+  publish-nuget:
+    needs: pack
+    if: needs.pack.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./artifacts
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Publish to NuGet
+      run: |
+        dotnet nuget push ./artifacts/*.nupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+
+  create-github-release:
+    needs: [pack, publish-nuget]
+    if: needs.pack.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./artifacts
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: A2A-Ask v${{ needs.pack.outputs.version }}
+        files: ./artifacts/*.nupkg
+        generate_release_notes: true
+
+  publish-plugin:
+    needs: [pack, create-github-release]
+    if: needs.pack.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Publish to plugins repo
+      uses: peter-evans/repository-dispatch@v3
+      with:
+        token: ${{ secrets.PLUGIN_PUBLISH_TOKEN }}
+        repository: spec-works/plugins
+        event-type: plugin-update
+        client-payload: |
+          {
+            "plugin": "a2a-ask",
+            "version": "${{ needs.pack.outputs.version }}",
+            "repository": "${{ github.repository }}"
+          }
