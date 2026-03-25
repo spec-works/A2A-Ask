@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Agent Skill Guide | A2A-Ask Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Agent Skill Guide | A2A-Ask Documentation ">
+      
+      
+      <link rel="icon" href="images/logo.svg">
+      <link rel="stylesheet" href="public/docfx.min.css">
+      <link rel="stylesheet" href="public/main.css">
+      <meta name="docfx:navrel" content="toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/spec-works/A2A-Ask/blob/master/docs/skill.md/#L1">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="index.html">
+            <img id="logo" class="svg" src="images/logo.svg" alt="A2A-Ask">
+            A2A-Ask
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+
+      <div class="content">
+        <div class="actionbar">
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="agent-skill-guide">Agent Skill Guide</h1>
+
+<p>The A2A-Ask CLI includes a SKILL.md file that teaches AI coding assistants (GitHub Copilot CLI, Claude Code, VS Code Copilot, Cursor, etc.) how to use the tool effectively.</p>
+<h2 id="what-is-a-skill">What is a Skill?</h2>
+<p>A skill is a structured document that gives AI assistants domain knowledge about a tool — its commands, workflows, decision trees, and error handling. When installed, the AI assistant can:</p>
+<ul>
+<li>Discover A2A agents and understand their capabilities</li>
+<li>Send messages and interpret responses</li>
+<li>Handle multi-turn conversations automatically</li>
+<li>Manage authentication requirements</li>
+<li>Stream responses and poll for status</li>
+<li>Handle errors and edge cases</li>
+</ul>
+<h2 id="installing-the-skill">Installing the Skill</h2>
+<h3 id="github-copilot-cli-personal">GitHub Copilot CLI (personal)</h3>
+<pre><code class="lang-bash">mkdir -p ~/.copilot/skills/a2a-ask-cli
+cp skill/SKILL.md ~/.copilot/skills/a2a-ask-cli/SKILL.md
+</code></pre>
+<h3 id="github-copilot-cli-project">GitHub Copilot CLI (project)</h3>
+<pre><code class="lang-bash">mkdir -p .github/skills/a2a-ask-cli
+cp skill/SKILL.md .github/skills/a2a-ask-cli/SKILL.md
+git add .github/skills/
+git commit -m &quot;Add A2A-Ask CLI agent skill&quot;
+</code></pre>
+<h3 id="claude-code-personal">Claude Code (personal)</h3>
+<pre><code class="lang-bash">mkdir -p ~/.claude/skills/a2a-ask-cli
+cp skill/SKILL.md ~/.claude/skills/a2a-ask-cli/SKILL.md
+</code></pre>
+<h3 id="claude-code-project">Claude Code (project)</h3>
+<pre><code class="lang-bash">mkdir -p .claude/skills/a2a-ask-cli
+cp skill/SKILL.md .claude/skills/a2a-ask-cli/SKILL.md
+</code></pre>
+<h3 id="vs-code--cursor-project">VS Code / Cursor (project)</h3>
+<pre><code class="lang-bash">mkdir -p .github/skills/a2a-ask-cli
+cp skill/SKILL.md .github/skills/a2a-ask-cli/SKILL.md
+</code></pre>
+<h3 id="from-the-specworks-plugins-marketplace">From the SpecWorks Plugins Marketplace</h3>
+<p>The skill is also available via the <a href="https://github.com/spec-works/plugins">SpecWorks plugins repository</a>:</p>
+<pre><code class="lang-bash"># Using GitHub Copilot CLI plugin system
+copilot plugins add spec-works
+</code></pre>
+<p>After installing, restart your agent session to pick up the new skill.</p>
+<h2 id="what-the-skill-teaches">What the Skill Teaches</h2>
+<p>The SKILL.md covers:</p>
+<ol>
+<li><strong>Agent Discovery</strong> — How to fetch and interpret agent cards</li>
+<li><strong>Message Sending</strong> — Text, file, and structured data messages</li>
+<li><strong>Streaming</strong> — Real-time status updates and partial results</li>
+<li><strong>Multi-Turn Conversations</strong> — Following up with <code>--task-id</code></li>
+<li><strong>Task Management</strong> — Polling, listing, and canceling tasks</li>
+<li><strong>Authentication</strong> — Decision tree for API keys, bearer tokens, OAuth2</li>
+<li><strong>Error Handling</strong> — Common errors and recovery strategies</li>
+<li><strong>A2A Protocol Reference</strong> — Task states, protocol versions, key concepts</li>
+</ol>
+<h2 id="view-the-full-skill">View the Full Skill</h2>
+<p>The complete SKILL.md is available in the <a href="https://github.com/spec-works/A2A-Ask/blob/master/skill/SKILL.md">skill/ folder</a> of the repository.</p>
+
+</article>
+
+        <div class="contribution d-print-none">
+          <a href="https://github.com/spec-works/A2A-Ask/blob/master/docs/skill.md/#L1" class="edit-link">Edit this page</a>
+        </div>
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <a href='https://spec-works.github.io/'>SpecWorks Factory</a> | <a href='https://github.com/spec-works/A2A-Ask'>GitHub</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
