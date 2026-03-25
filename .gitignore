@@ -1,0 +1,39 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+nupkg/
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# IDE
+.vs/
+.vscode/
+*.swp
+*~
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Test results
+TestResults/
+coverage/

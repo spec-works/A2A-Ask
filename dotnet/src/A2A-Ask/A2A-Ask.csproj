@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>A2AAsk</RootNamespace>
+    <AssemblyName>A2A-Ask</AssemblyName>
+
+    <!-- NuGet Tool Packaging -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>a2a-ask</ToolCommandName>
+    <PackageId>SpecWorks.A2A-Ask</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>spec-works</Authors>
+    <Description>A2A-Ask: CLI tool for interacting with A2A (Agent-to-Agent) protocol agents. Discover agents, send messages, stream responses, and manage tasks from the command line or via AI agent skills.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/spec-works/A2A-Ask</RepositoryUrl>
+    <PackageTags>a2a;agent;ai;cli;agent-to-agent</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Local project references to a2a-dotnet SDK (version-negotiation branch) -->
+    <ProjectReference Include="..\..\..\..\..\a2a\a2a-dotnet\src\A2A\A2A.csproj" />
+    <ProjectReference Include="..\..\..\..\..\a2a\a2a-dotnet\src\A2A.V0_3Compat\A2A.V0_3Compat.csproj" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

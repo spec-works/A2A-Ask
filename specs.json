@@ -1,0 +1,27 @@
+{
+  "linkset": [
+    {
+      "href": "https://a2a-protocol.org/latest/specification/",
+      "type": "text/html",
+      "rel": "describedby",
+      "title": "A2A (Agent-to-Agent) Protocol Specification"
+    },
+    {
+      "href": "https://github.com/a2aproject/a2a-dotnet",
+      "type": "text/html",
+      "rel": "related",
+      "title": "A2A .NET SDK"
+    },
+    {
+      "href": "https://www.nuget.org/packages/A2A",
+      "type": "text/html",
+      "rel": "related",
+      "title": "A2A NuGet Package"
+    },
+    {
+      "rel": "registry",
+      "title": "Part registry entry",
+      "href": "https://spec-works.github.io/registry/parts/a2a-ask/"
+    }
+  ]
+}
