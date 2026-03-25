@@ -146,23 +146,3 @@ jobs:
         name: A2A-Ask v${{ needs.pack.outputs.version }}
         files: ./artifacts/*.nupkg
         generate_release_notes: true
-
-  publish-plugin:
-    needs: [pack, create-github-release]
-    if: needs.pack.outputs.is_release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Publish to plugins repo
-      uses: peter-evans/repository-dispatch@v3
-      with:
-        token: ${{ secrets.PLUGIN_PUBLISH_TOKEN }}
-        repository: spec-works/plugins
-        event-type: plugin-update
-        client-payload: |
-          {
-            "plugin": "a2a-ask",
-            "version": "${{ needs.pack.outputs.version }}",
-            "repository": "${{ github.repository }}"
-          }
