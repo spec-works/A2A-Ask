@@ -21,10 +21,16 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- A2A SDK root: set A2A_SDK_ROOT env var in CI, or use local relative path for dev -->
+    <A2ASdkRoot Condition="'$(A2A_SDK_ROOT)' != ''">$(A2A_SDK_ROOT)</A2ASdkRoot>
+    <A2ASdkRoot Condition="'$(A2ASdkRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..\..\..\a2a\a2a-dotnet'))</A2ASdkRoot>
+  </PropertyGroup>
+
   <ItemGroup>
-    <!-- Local project references to a2a-dotnet SDK (version-negotiation branch) -->
-    <ProjectReference Include="..\..\..\..\..\a2a\a2a-dotnet\src\A2A\A2A.csproj" />
-    <ProjectReference Include="..\..\..\..\..\a2a\a2a-dotnet\src\A2A.V0_3Compat\A2A.V0_3Compat.csproj" />
+    <!-- A2A SDK project references (version-negotiation branch) -->
+    <ProjectReference Include="$(A2ASdkRoot)\src\A2A\A2A.csproj" />
+    <ProjectReference Include="$(A2ASdkRoot)\src\A2A.V0_3Compat\A2A.V0_3Compat.csproj" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>
 

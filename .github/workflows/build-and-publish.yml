@@ -25,7 +25,7 @@ jobs:
       with:
         repository: a2aproject/a2a-dotnet
         ref: darrelmiller/issue-331-version-negotiation
-        path: ../a2a/a2a-dotnet
+        path: a2a-dotnet
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -35,14 +35,20 @@ jobs:
     - name: Restore
       working-directory: ${{ env.TEST_PATH }}
       run: dotnet restore
+      env:
+        A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
 
     - name: Build
       working-directory: ${{ env.TEST_PATH }}
       run: dotnet build --no-restore --configuration Release
+      env:
+        A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
 
     - name: Test
       working-directory: ${{ env.TEST_PATH }}
       run: dotnet test --no-build --configuration Release --verbosity normal
+      env:
+        A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
 
   pack:
     needs: build-and-test
@@ -55,7 +61,7 @@ jobs:
       with:
         repository: a2aproject/a2a-dotnet
         ref: darrelmiller/issue-331-version-negotiation
-        path: ../a2a/a2a-dotnet
+        path: a2a-dotnet
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -81,6 +87,8 @@ jobs:
           --configuration Release \
           --output ./artifacts \
           /p:Version=${{ steps.version.outputs.version }}
+      env:
+        A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
