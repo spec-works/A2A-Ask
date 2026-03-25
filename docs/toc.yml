@@ -1,0 +1,10 @@
+- name: ← SpecWorks Factory
+  href: https://spec-works.github.io/
+- name: Home
+  href: index.md
+- name: CLI Reference
+  href: cli-reference.md
+- name: Skill
+  href: skill.md
+- name: GitHub
+  href: https://github.com/spec-works/A2A-Ask
