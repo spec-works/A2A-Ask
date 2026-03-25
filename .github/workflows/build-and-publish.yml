@@ -34,7 +34,7 @@ jobs:
 
     - name: Restore
       working-directory: ${{ env.TEST_PATH }}
-      run: dotnet restore
+      run: dotnet restore /p:RestoreConfigFile=${{ github.workspace }}/nuget.config
       env:
         A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
 
@@ -86,7 +86,8 @@ jobs:
         dotnet pack ${{ env.PROJECT_PATH }} \
           --configuration Release \
           --output ./artifacts \
-          /p:Version=${{ steps.version.outputs.version }}
+          /p:Version=${{ steps.version.outputs.version }} \
+          /p:RestoreConfigFile=${{ github.workspace }}/nuget.config
       env:
         A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
 

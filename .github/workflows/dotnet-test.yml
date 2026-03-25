@@ -33,7 +33,7 @@ jobs:
 
     - name: Restore dependencies
       working-directory: dotnet
-      run: dotnet restore
+      run: dotnet restore /p:RestoreConfigFile=${{ github.workspace }}/nuget.config
       env:
         A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
 
