@@ -70,6 +70,19 @@ public static class DiscoverCommand
                 // Try SDK-based agent card resolution first
                 try
                 {
+                    if (extended)
+                    {
+                        // For extended card, use A2A client's GetExtendedAgentCardAsync
+                        var client = await CommonOptions.CreateClientAsync(
+                            url, httpClient, context.GetCancellationToken());
+                        var extCard = await client.GetExtendedAgentCardAsync(
+                            new GetExtendedAgentCardRequest { Tenant = tenant },
+                            context.GetCancellationToken());
+                        var formatter = new ConsoleFormatter(output, pretty);
+                        formatter.WriteAgentCard(extCard, verbose);
+                        return;
+                    }
+
                     A2ACardResolver resolver;
                     if (useWellKnown)
                     {
@@ -83,12 +96,9 @@ public static class DiscoverCommand
                         resolver = new A2ACardResolver(baseUri, httpClient, fullUri.PathAndQuery);
                     }
 
-                    if (extended)
-                        Console.Error.WriteLine("Warning: Extended agent card is not supported in this SDK version. Showing public card.");
-
                     var card = await resolver.GetAgentCardAsync();
-                    var formatter = new ConsoleFormatter(output, pretty);
-                    formatter.WriteAgentCard(card, verbose);
+                    var fmtr = new ConsoleFormatter(output, pretty);
+                    fmtr.WriteAgentCard(card, verbose);
                     return;
                 }
                 catch (A2AException ex)

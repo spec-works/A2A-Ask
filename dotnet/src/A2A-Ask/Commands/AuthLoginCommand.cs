@@ -100,15 +100,33 @@ public static class AuthCommand
                 if (oauth2.HasValue)
                 {
                     var (schemeName, scheme) = oauth2.Value;
-                    Console.WriteLine($"Using OAuth2 device code flow via '{schemeName}'...");
-                    Console.WriteLine();
-
-                    // Extract required scopes from SecurityRequirements
                     var requiredScopes = ExtractRequiredScopes(card, schemeName);
 
-                    var flow = new DeviceCodeFlow(scheme);
-                    var tokenResult = await flow.AuthenticateAsync(
-                        requiredScopes, context.GetCancellationToken());
+                    TokenResult? tokenResult;
+
+                    // Pick flow based on what's available: device code preferred, then auth code
+                    if (scheme.Flows?.DeviceCode != null)
+                    {
+                        Console.WriteLine($"Using OAuth2 device code flow via '{schemeName}'...");
+                        Console.WriteLine();
+                        var flow = new DeviceCodeFlow(scheme);
+                        tokenResult = await flow.AuthenticateAsync(
+                            requiredScopes, context.GetCancellationToken());
+                    }
+                    else if (scheme.Flows?.AuthorizationCode != null)
+                    {
+                        Console.WriteLine($"Using OAuth2 authorization code flow via '{schemeName}'...");
+                        Console.WriteLine("Opening browser for authentication...");
+                        Console.WriteLine();
+                        tokenResult = await AuthCodeFlow.AuthenticateAsync(
+                            scheme, requiredScopes, context.GetCancellationToken());
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine("No supported interactive OAuth2 flow found (need device_code or authorization_code).");
+                        context.ExitCode = 1;
+                        return;
+                    }
 
                     if (tokenResult != null)
                     {

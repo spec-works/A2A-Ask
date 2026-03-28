@@ -558,12 +558,12 @@ The CLI automatically detects the agent's protocol version and communicates acco
 
 ## Limitations
 
-1. **OAuth2 authorization code flow** — Only device code flow and client credentials are supported interactively. For auth code flow, obtain the token externally and pass via `--auth-token`.
-2. **mTLS** — Mutual TLS authentication is not yet supported.
-3. **Push notifications** — The CLI cannot receive push notifications (it's a client, not a server). Use streaming or polling instead.
-4. **Binary output in JSON mode** — File artifacts are base64-encoded inline. Use `--save-artifacts` for large files.
-5. **Query-string API keys** — The `--api-key-location query` option is recognized but may not work with all A2A SDK versions. Use header-based API keys when possible.
-6. **Token encryption** — Token storage is encrypted with DPAPI on Windows only. On macOS/Linux, tokens are stored as plaintext JSON with restricted file permissions (0600).
+1. **mTLS** — Mutual TLS authentication is not yet supported.
+2. **Push notifications** — The CLI cannot receive push notifications (it's a client, not a server). Use streaming or polling instead.
+3. **Binary output in JSON mode** — File artifacts are base64-encoded inline. Use `--save-artifacts` for large files.
+4. **Query-string API keys** — The `--api-key-location query` option is recognized but may not work with all A2A SDK versions. Use header-based API keys when possible.
+5. **Token encryption** — Token storage is encrypted with DPAPI on Windows only. On macOS/Linux, tokens are stored as plaintext JSON with restricted file permissions (0600).
+6. **Auth code flow port** — The authorization code flow uses a fixed localhost callback on port 29080. Ensure this port is available.
 
 ## Installing This Skill
 
