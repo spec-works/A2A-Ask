@@ -12,7 +12,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>a2a-ask</ToolCommandName>
     <PackageId>SpecWorks.A2A-Ask</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Authors>spec-works</Authors>
     <Description>A2A-Ask: CLI tool for interacting with A2A (Agent-to-Agent) protocol agents. Discover agents, send messages, stream responses, and manage tasks from the command line or via AI agent skills.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
