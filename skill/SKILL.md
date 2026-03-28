@@ -253,7 +253,23 @@ Interactively authenticate with an A2A agent using OAuth2 device code flow.
 a2a-ask auth login <url>
 ```
 
-This reads the agent card's security schemes and runs the appropriate interactive authentication flow. The obtained token is stored for reuse.
+This reads the agent card's security schemes and runs the appropriate interactive authentication flow. The obtained token is stored for reuse. Stored tokens are automatically used by subsequent commands and auto-refreshed when expired (if a refresh token is available).
+
+### `a2a-ask auth logout <url>`
+
+Remove the stored authentication token for an agent.
+
+```bash
+a2a-ask auth logout <url>
+```
+
+### `a2a-ask auth status <url>`
+
+Show authentication status for an agent — token validity, expiry, and whether a refresh token is available.
+
+```bash
+a2a-ask auth status <url>
+```
 
 ### `a2a-ask version`
 
@@ -514,8 +530,7 @@ The CLI automatically detects the agent's protocol version and communicates acco
 1. **OAuth2 authorization code flow** — Only device code flow is supported interactively. For auth code flow, obtain the token externally and pass via `--auth-token`.
 2. **mTLS** — Mutual TLS authentication is not yet supported.
 3. **Push notifications** — The CLI cannot receive push notifications (it's a client, not a server). Use streaming or polling instead.
-4. **Token refresh** — Stored tokens are not automatically refreshed. If a token expires, re-run `auth login`.
-5. **Binary output in JSON mode** — File artifacts are base64-encoded inline. Use `--save-artifacts` for large files.
+4. **Binary output in JSON mode** — File artifacts are base64-encoded inline. Use `--save-artifacts` for large files.
 
 ## Installing This Skill
 
