@@ -209,6 +209,19 @@ public class ConsoleFormatter
             WriteMessageParts(task.Status.Message, "    ");
         }
 
+        if (task.Status.State == TaskState.AuthRequired)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  This agent requires authentication. Run:");
+            Console.WriteLine($"    a2a-ask auth login <agent-url>");
+        }
+        else if (task.Status.State == TaskState.InputRequired)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  Agent requires additional input. Reply with:");
+            Console.WriteLine($"    a2a-ask send <url> --task-id {task.Id} -m \"<your response>\"");
+        }
+
         if (task.Artifacts != null && task.Artifacts.Count > 0)
         {
             Console.WriteLine($"  Artifacts ({task.Artifacts.Count}):");

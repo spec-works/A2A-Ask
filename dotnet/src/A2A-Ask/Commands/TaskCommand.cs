@@ -56,8 +56,8 @@ public static class TaskCommand
 
             try
             {
-                var httpClient = AuthConfigurator.CreateHttpClient(
-                    authToken: authToken, authHeader: authHeader,
+                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                    url, authToken: authToken, authHeader: authHeader,
                     apiKey: apiKey, apiKeyHeader: apiKeyHeader);
 
                 var ct = context.GetCancellationToken();
@@ -126,8 +126,8 @@ public static class TaskCommand
 
             try
             {
-                var httpClient = AuthConfigurator.CreateHttpClient(
-                    authToken: authToken, authHeader: authHeader,
+                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                    url, authToken: authToken, authHeader: authHeader,
                     apiKey: apiKey, apiKeyHeader: apiKeyHeader);
 
                 var ct = context.GetCancellationToken();
@@ -193,8 +193,8 @@ public static class TaskCommand
 
             try
             {
-                var httpClient = AuthConfigurator.CreateHttpClient(
-                    authToken: authToken, authHeader: authHeader,
+                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                    url, authToken: authToken, authHeader: authHeader,
                     apiKey: apiKey, apiKeyHeader: apiKeyHeader);
 
                 var ct = context.GetCancellationToken();

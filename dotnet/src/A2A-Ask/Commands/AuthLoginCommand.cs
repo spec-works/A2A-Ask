@@ -12,6 +12,8 @@ public static class AuthCommand
     {
         var authCommand = new Command("auth", "Authentication management");
         authCommand.AddCommand(CreateLoginCommand());
+        authCommand.AddCommand(CreateLogoutCommand());
+        authCommand.AddCommand(CreateStatusCommand());
         return authCommand;
     }
 
@@ -155,5 +157,103 @@ public static class AuthCommand
         }
 
         return null;
+    }
+
+    private static Command CreateLogoutCommand()
+    {
+        var urlArgument = new Argument<string>(
+            name: "url",
+            description: "Agent URL to remove stored token for");
+
+        var command = new Command("logout", "Remove stored authentication token for an agent")
+        {
+            urlArgument
+        };
+
+        command.SetHandler(async (InvocationContext context) =>
+        {
+            var url = context.ParseResult.GetValueForArgument(urlArgument);
+            try
+            {
+                var store = new TokenStore();
+                var token = await store.LoadTokenAsync(url);
+                if (token != null)
+                {
+                    await store.RemoveTokenAsync(url);
+                    Console.WriteLine($"Token removed for {url}");
+                }
+                else
+                {
+                    Console.WriteLine($"No stored token found for {url}");
+                }
+            }
+            catch (Exception ex)
+            {
+                ConsoleFormatter.WriteError(ex, false);
+                context.ExitCode = 1;
+            }
+        });
+
+        return command;
+    }
+
+    private static Command CreateStatusCommand()
+    {
+        var urlArgument = new Argument<string>(
+            name: "url",
+            description: "Agent URL to check authentication status for");
+
+        var command = new Command("status", "Show authentication status for an agent")
+        {
+            urlArgument
+        };
+
+        command.SetHandler(async (InvocationContext context) =>
+        {
+            var url = context.ParseResult.GetValueForArgument(urlArgument);
+            try
+            {
+                var store = new TokenStore();
+                var token = await store.LoadTokenAsync(url);
+                if (token == null)
+                {
+                    Console.WriteLine($"No stored token for {url}");
+                    Console.WriteLine("Run: a2a-ask auth login <url>");
+                    return;
+                }
+
+                Console.WriteLine($"Agent: {url}");
+                Console.WriteLine($"Token type: {token.TokenType ?? "Bearer"}");
+                if (token.ExpiresAt.HasValue)
+                {
+                    if (token.IsExpired)
+                    {
+                        Console.WriteLine($"Status: EXPIRED (expired {token.ExpiresAt.Value:u})");
+                        if (!string.IsNullOrEmpty(token.RefreshToken))
+                            Console.WriteLine("A refresh token is available — next command will attempt auto-refresh.");
+                        else
+                            Console.WriteLine("No refresh token. Run: a2a-ask auth login <url>");
+                    }
+                    else
+                    {
+                        var remaining = token.ExpiresAt.Value - DateTime.UtcNow;
+                        Console.WriteLine($"Status: VALID (expires {token.ExpiresAt.Value:u}, {remaining.TotalMinutes:F0} min remaining)");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Status: VALID (no expiry set)");
+                }
+
+                Console.WriteLine($"Has refresh token: {!string.IsNullOrEmpty(token.RefreshToken)}");
+            }
+            catch (Exception ex)
+            {
+                ConsoleFormatter.WriteError(ex, false);
+                context.ExitCode = 1;
+            }
+        });
+
+        return command;
     }
 }

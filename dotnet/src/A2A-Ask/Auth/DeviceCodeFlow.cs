@@ -1,13 +1,11 @@
-using System.Net.Http.Json;
-using System.Text.Json;
+using Duende.IdentityModel.Client;
 using A2A;
 
 namespace A2AAsk.Auth;
 
 /// <summary>
-/// Implements the OAuth2 Device Code flow for CLI-based authentication.
-/// Uses the DeviceCode flow from OAuthFlows when available, otherwise derives
-/// the device authorization endpoint from the token URL.
+/// Implements the OAuth2 Device Code flow for CLI-based authentication
+/// using Duende.IdentityModel for standards-compliant token requests.
 /// </summary>
 public class DeviceCodeFlow
 {
@@ -24,6 +22,7 @@ public class DeviceCodeFlow
     {
         string? tokenUrl = null;
         string? deviceAuthUrlStr = null;
+        string? clientId = null;
         IDictionary<string, string>? scopes = null;
 
         if (_scheme.Flows != null)
@@ -51,40 +50,34 @@ public class DeviceCodeFlow
                 "Cannot determine token URL from OAuth2 scheme. " +
                 "The agent's OAuth2 configuration doesn't include device code, authorization code, or client credentials flows.");
 
-        // If we don't have an explicit device auth URL, derive it
+        // Derive device auth URL if not explicit
         var tokenUri = new Uri(tokenUrl);
-        Uri deviceAuthUrl;
+        string deviceAuthUrl;
         if (!string.IsNullOrEmpty(deviceAuthUrlStr))
-            deviceAuthUrl = new Uri(deviceAuthUrlStr);
+            deviceAuthUrl = deviceAuthUrlStr;
         else
-            deviceAuthUrl = DeriveDeviceAuthorizationUrl(tokenUri);
+            deviceAuthUrl = DeriveDeviceAuthorizationUrl(tokenUri).ToString();
 
         var scopeString = scopes != null ? string.Join(" ", scopes.Keys) : "";
 
-        // Step 1: Request device code
-        var deviceRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["scope"] = scopeString
-        });
+        // Step 1: Request device authorization using IdentityModel
+        var deviceAuthResponse = await _httpClient.RequestDeviceAuthorizationAsync(
+            new DeviceAuthorizationRequest
+            {
+                Address = deviceAuthUrl,
+                ClientId = clientId ?? "a2a-ask-cli",
+                Scope = scopeString
+            }, cancellationToken);
 
-        var deviceResponse = await _httpClient.PostAsync(deviceAuthUrl, deviceRequest, cancellationToken);
-        deviceResponse.EnsureSuccessStatusCode();
-
-        var deviceJson = await deviceResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
-
-        var userCode = deviceJson.GetProperty("user_code").GetString()!;
-        var verificationUri = deviceJson.TryGetProperty("verification_uri_complete", out var complete)
-            ? complete.GetString()!
-            : deviceJson.GetProperty("verification_uri").GetString()!;
-        var deviceCodeValue = deviceJson.GetProperty("device_code").GetString()!;
-        var interval = deviceJson.TryGetProperty("interval", out var intervalProp)
-            ? intervalProp.GetInt32()
-            : 5;
-        var expiresIn = deviceJson.TryGetProperty("expires_in", out var expiresProp)
-            ? expiresProp.GetInt32()
-            : 600;
+        if (deviceAuthResponse.IsError)
+            throw new InvalidOperationException(
+                $"Device authorization failed: {deviceAuthResponse.Error} - {deviceAuthResponse.ErrorDescription}");
 
         // Step 2: Display instructions to user
+        var verificationUri = deviceAuthResponse.VerificationUriComplete
+            ?? deviceAuthResponse.VerificationUri;
+        var userCode = deviceAuthResponse.UserCode;
+
         Console.WriteLine("To authenticate, open the following URL in your browser:");
         Console.WriteLine();
         Console.WriteLine($"  {verificationUri}");
@@ -93,7 +86,9 @@ public class DeviceCodeFlow
         Console.WriteLine();
         Console.WriteLine("Waiting for authentication...");
 
-        // Step 3: Poll for token
+        // Step 3: Poll for token using IdentityModel
+        var interval = deviceAuthResponse.Interval is > 0 ? (int)deviceAuthResponse.Interval : 5;
+        var expiresIn = deviceAuthResponse.ExpiresIn is > 0 ? (double)deviceAuthResponse.ExpiresIn : 600.0;
         var deadline = DateTime.UtcNow.AddSeconds(expiresIn);
 
         while (DateTime.UtcNow < deadline)
@@ -101,54 +96,46 @@ public class DeviceCodeFlow
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Delay(TimeSpan.FromSeconds(interval), cancellationToken);
 
-            var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["grant_type"] = "urn:ietf:params:oauth:grant-type:device_code",
-                ["device_code"] = deviceCodeValue
-            });
-
-            var tokenResponse = await _httpClient.PostAsync(tokenUrl, tokenRequest, cancellationToken);
-
-            if (tokenResponse.IsSuccessStatusCode)
-            {
-                var tokenJson = await tokenResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
-                return new TokenResult
+            var tokenResponse = await _httpClient.RequestDeviceTokenAsync(
+                new DeviceTokenRequest
                 {
-                    AccessToken = tokenJson.GetProperty("access_token").GetString()!,
-                    RefreshToken = tokenJson.TryGetProperty("refresh_token", out var refresh)
-                        ? refresh.GetString()
-                        : null,
-                    ExpiresAt = tokenJson.TryGetProperty("expires_in", out var expiresInToken)
-                        ? DateTime.UtcNow.AddSeconds(expiresInToken.GetInt32())
-                        : null,
-                    TokenType = tokenJson.TryGetProperty("token_type", out var tokenType)
-                        ? tokenType.GetString()
-                        : "Bearer"
-                };
-            }
+                    Address = tokenUrl,
+                    ClientId = clientId ?? "a2a-ask-cli",
+                    DeviceCode = deviceAuthResponse.DeviceCode!
+                }, cancellationToken);
 
-            var errorJson = await tokenResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
-            var error = errorJson.TryGetProperty("error", out var errorProp)
-                ? errorProp.GetString()
-                : null;
-
-            switch (error)
+            if (tokenResponse.IsError)
             {
-                case "authorization_pending":
-                    break;
-                case "slow_down":
-                    interval += 5;
-                    break;
-                case "expired_token":
-                    Console.Error.WriteLine("Device code expired. Please try again.");
-                    return null;
-                case "access_denied":
-                    Console.Error.WriteLine("Access denied by user.");
-                    return null;
-                default:
-                    Console.Error.WriteLine($"Authentication error: {error}");
-                    return null;
+                switch (tokenResponse.Error)
+                {
+                    case "authorization_pending":
+                        continue;
+                    case "slow_down":
+                        interval += 5;
+                        continue;
+                    case "expired_token":
+                        Console.Error.WriteLine("Device code expired. Please try again.");
+                        return null;
+                    case "access_denied":
+                        Console.Error.WriteLine("Access denied by user.");
+                        return null;
+                    default:
+                        Console.Error.WriteLine($"Authentication error: {tokenResponse.Error} - {tokenResponse.ErrorDescription}");
+                        return null;
+                }
             }
+
+            // Success
+            return new TokenResult
+            {
+                AccessToken = tokenResponse.AccessToken!,
+                RefreshToken = tokenResponse.RefreshToken,
+                ExpiresAt = tokenResponse.ExpiresIn > 0
+                    ? DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
+                    : null,
+                TokenType = tokenResponse.TokenType ?? "Bearer",
+                TokenUrl = tokenUrl
+            };
         }
 
         Console.Error.WriteLine("Authentication timed out.");
@@ -156,22 +143,46 @@ public class DeviceCodeFlow
     }
 
     /// <summary>
-    /// Derives the device authorization URL from the token URL.
-    /// Common patterns: /oauth2/v2.0/devicecode, /oauth/device/code, etc.
-    /// Falls back to replacing /token with /devicecode in the path.
+    /// Refreshes an expired token using the stored refresh token.
     /// </summary>
+    public static async Task<TokenResult?> RefreshTokenAsync(
+        TokenResult expiredToken, HttpClient? httpClient = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(expiredToken.RefreshToken) || string.IsNullOrEmpty(expiredToken.TokenUrl))
+            return null;
+
+        var client = httpClient ?? new HttpClient();
+        var response = await client.RequestRefreshTokenAsync(
+            new RefreshTokenRequest
+            {
+                Address = expiredToken.TokenUrl,
+                ClientId = "a2a-ask-cli",
+                RefreshToken = expiredToken.RefreshToken
+            }, cancellationToken);
+
+        if (response.IsError)
+            return null;
+
+        return new TokenResult
+        {
+            AccessToken = response.AccessToken!,
+            RefreshToken = response.RefreshToken ?? expiredToken.RefreshToken,
+            ExpiresAt = response.ExpiresIn > 0
+                ? DateTime.UtcNow.AddSeconds(response.ExpiresIn)
+                : null,
+            TokenType = response.TokenType ?? "Bearer",
+            TokenUrl = expiredToken.TokenUrl
+        };
+    }
+
     private static Uri DeriveDeviceAuthorizationUrl(Uri tokenUrl)
     {
         var path = tokenUrl.AbsolutePath;
-
-        // Common pattern: replace /token with /devicecode
         if (path.Contains("/token", StringComparison.OrdinalIgnoreCase))
         {
             var devicePath = path.Replace("/token", "/devicecode", StringComparison.OrdinalIgnoreCase);
             return new Uri(tokenUrl, devicePath);
         }
-
-        // Fallback: append /devicecode to the base
         return new Uri(tokenUrl, "./devicecode");
     }
 }

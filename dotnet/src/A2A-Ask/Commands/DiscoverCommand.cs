@@ -56,7 +56,8 @@ public static class DiscoverCommand
 
             try
             {
-                var httpClient = AuthConfigurator.CreateHttpClient(
+                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                    url,
                     authToken: authToken,
                     authHeader: authHeader);
 

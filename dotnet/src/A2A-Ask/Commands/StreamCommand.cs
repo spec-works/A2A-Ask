@@ -109,7 +109,8 @@ public static class StreamCommand
 
             try
             {
-                var httpClient = AuthConfigurator.CreateHttpClient(
+                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                    url,
                     authToken: authToken,
                     authHeader: authHeader,
                     apiKey: apiKey,

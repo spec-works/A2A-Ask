@@ -88,6 +88,7 @@ public class TokenResult
     public string? RefreshToken { get; set; }
     public DateTime? ExpiresAt { get; set; }
     public string? TokenType { get; set; }
+    public string? TokenUrl { get; set; }
 
     public bool IsExpired => ExpiresAt.HasValue && DateTime.UtcNow >= ExpiresAt.Value;
 }
