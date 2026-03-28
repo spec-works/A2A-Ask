@@ -40,6 +40,10 @@ public static class StreamCommand
         var authHeaderOption = CommonOptions.AuthHeader();
         var apiKeyOption = CommonOptions.ApiKey();
         var apiKeyHeaderOption = CommonOptions.ApiKeyHeader();
+        var authUserOption = CommonOptions.AuthUser();
+        var authPasswordOption = CommonOptions.AuthPassword();
+        var clientIdOption = CommonOptions.ClientId();
+        var clientSecretOption = CommonOptions.ClientSecret();
         var tenantOption = CommonOptions.Tenant();
         var saveArtifactsOption = CommonOptions.SaveArtifacts();
 
@@ -58,6 +62,10 @@ public static class StreamCommand
             authHeaderOption,
             apiKeyOption,
             apiKeyHeaderOption,
+            authUserOption,
+            authPasswordOption,
+            clientIdOption,
+            clientSecretOption,
             tenantOption,
             saveArtifactsOption
         };
@@ -95,6 +103,10 @@ public static class StreamCommand
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
             var apiKeyHeader = context.ParseResult.GetValueForOption(apiKeyHeaderOption);
+            var authUser = context.ParseResult.GetValueForOption(authUserOption);
+            var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
+            var clientId = context.ParseResult.GetValueForOption(clientIdOption);
+            var clientSecret = context.ParseResult.GetValueForOption(clientSecretOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
             var saveArtifacts = context.ParseResult.GetValueForOption(saveArtifactsOption);
             var output = context.ParseResult.GetValueForOption(
@@ -114,7 +126,10 @@ public static class StreamCommand
                     authToken: authToken,
                     authHeader: authHeader,
                     apiKey: apiKey,
-                    apiKeyHeader: apiKeyHeader);
+                    apiKeyHeader: apiKeyHeader,
+                    authUser: authUser,
+                    authPassword: authPassword,
+                    tenant: tenant);
 
                 var formatter = new ConsoleFormatter(output, pretty);
                 var renderer = new ProgressRenderer(output);

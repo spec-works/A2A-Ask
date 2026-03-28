@@ -13,7 +13,7 @@ public class TokenStoreTests : IDisposable
         _tempDir = Path.Combine(Path.GetTempPath(), $"a2a-ask-test-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
         _storePath = Path.Combine(_tempDir, "tokens.json");
-        _store = new TokenStore(_storePath);
+        _store = new TokenStore(_storePath, useEncryption: false);
     }
 
     public void Dispose()
@@ -100,5 +100,50 @@ public class TokenStoreTests : IDisposable
 
         Assert.Equal("t1", t1!.AccessToken);
         Assert.Equal("t2", t2!.AccessToken);
+    }
+
+    [Fact]
+    public void BuildStorageKey_WithoutTenant_ReturnsNormalizedUrl()
+    {
+        var key = TokenStore.BuildStorageKey("https://Agent.Example.COM/path/");
+        Assert.Equal("https://agent.example.com/path", key);
+    }
+
+    [Fact]
+    public void BuildStorageKey_WithTenant_IncludesTenant()
+    {
+        var key = TokenStore.BuildStorageKey("https://agent.example.com", "tenant-123");
+        Assert.Contains("|tenant=tenant-123", key);
+    }
+
+    [Fact]
+    public async Task TenantAwareKeys_StoredSeparately()
+    {
+        var key1 = TokenStore.BuildStorageKey("https://agent.example.com", "tenant-a");
+        var key2 = TokenStore.BuildStorageKey("https://agent.example.com", "tenant-b");
+
+        await _store.SaveTokenAsync(key1, new TokenResult { AccessToken = "token-a" });
+        await _store.SaveTokenAsync(key2, new TokenResult { AccessToken = "token-b" });
+
+        var ta = await _store.LoadTokenAsync(key1);
+        var tb = await _store.LoadTokenAsync(key2);
+
+        Assert.Equal("token-a", ta!.AccessToken);
+        Assert.Equal("token-b", tb!.AccessToken);
+    }
+
+    [Fact]
+    public async Task TokenUrl_IsPersistedAndLoaded()
+    {
+        var token = new TokenResult
+        {
+            AccessToken = "at",
+            TokenUrl = "https://auth.example.com/token"
+        };
+
+        await _store.SaveTokenAsync("https://agent.example.com", token);
+        var loaded = await _store.LoadTokenAsync("https://agent.example.com");
+
+        Assert.Equal("https://auth.example.com/token", loaded!.TokenUrl);
     }
 }

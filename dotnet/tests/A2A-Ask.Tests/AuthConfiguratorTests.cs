@@ -62,4 +62,48 @@ public class AuthConfiguratorTests
         // API key is also set (both can coexist)
         Assert.True(client.DefaultRequestHeaders.Contains("X-API-Key"));
     }
+
+    [Fact]
+    public void CreateHttpClient_WithBasicAuth_SetsBasicHeader()
+    {
+        var client = AuthConfigurator.CreateHttpClient(authUser: "user", authPassword: "pass");
+
+        Assert.NotNull(client.DefaultRequestHeaders.Authorization);
+        Assert.Equal("Basic", client.DefaultRequestHeaders.Authorization.Scheme);
+        var decoded = System.Text.Encoding.UTF8.GetString(
+            Convert.FromBase64String(client.DefaultRequestHeaders.Authorization.Parameter!));
+        Assert.Equal("user:pass", decoded);
+    }
+
+    [Fact]
+    public void CreateHttpClient_WithBasicAuth_EmptyPassword()
+    {
+        var client = AuthConfigurator.CreateHttpClient(authUser: "user");
+
+        Assert.NotNull(client.DefaultRequestHeaders.Authorization);
+        Assert.Equal("Basic", client.DefaultRequestHeaders.Authorization.Scheme);
+        var decoded = System.Text.Encoding.UTF8.GetString(
+            Convert.FromBase64String(client.DefaultRequestHeaders.Authorization.Parameter!));
+        Assert.Equal("user:", decoded);
+    }
+
+    [Fact]
+    public void CreateHttpClient_ApiKeyAsCookie()
+    {
+        var client = AuthConfigurator.CreateHttpClient(
+            apiKey: "secret-key", apiKeyHeader: "session", apiKeyLocation: "cookie");
+
+        Assert.True(client.DefaultRequestHeaders.Contains("Cookie"));
+        Assert.Equal("session=secret-key",
+            client.DefaultRequestHeaders.GetValues("Cookie").First());
+    }
+
+    [Fact]
+    public void CreateHttpClient_ApiKeyAsHeader_Default()
+    {
+        var client = AuthConfigurator.CreateHttpClient(
+            apiKey: "secret-key", apiKeyLocation: "header");
+
+        Assert.True(client.DefaultRequestHeaders.Contains("X-API-Key"));
+    }
 }

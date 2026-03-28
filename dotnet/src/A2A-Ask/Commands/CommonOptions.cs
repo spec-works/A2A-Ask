@@ -24,6 +24,26 @@ public static class CommonOptions
         name: "--api-key-header",
         description: "API key header name (defaults to agent card setting)");
 
+    public static Option<string?> ApiKeyLocation() => new(
+        name: "--api-key-location",
+        description: "API key location: header (default), query, or cookie");
+
+    public static Option<string?> AuthUser() => new(
+        name: "--auth-user",
+        description: "Username for HTTP Basic authentication");
+
+    public static Option<string?> AuthPassword() => new(
+        name: "--auth-password",
+        description: "Password for HTTP Basic authentication");
+
+    public static Option<string?> ClientId() => new(
+        name: "--client-id",
+        description: "OAuth2 client ID for client_credentials grant");
+
+    public static Option<string?> ClientSecret() => new(
+        name: "--client-secret",
+        description: "OAuth2 client secret for client_credentials grant");
+
     public static Option<string?> TaskId() => new(
         aliases: ["--task-id", "-t"],
         description: "Task ID for continuing an existing task");

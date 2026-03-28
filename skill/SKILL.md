@@ -184,9 +184,14 @@ a2a-ask send <url> -m "message" [options]
 | `--save-artifacts` | | Directory to save file artifacts | — |
 | `--auth-token` | | Bearer token | — |
 | `--auth-header` | | Custom auth header (key=value) | — |
+| `--auth-user` | | Username for HTTP Basic auth | — |
+| `--auth-password` | | Password for HTTP Basic auth | — |
 | `--api-key` | | API key value | — |
 | `--api-key-header` | | API key header name | from card |
-| `--tenant` | | Tenant ID | from card |
+| `--api-key-location` | | API key location: header, query, or cookie | `header` |
+| `--client-id` | | OAuth2 client ID (for client_credentials) | — |
+| `--client-secret` | | OAuth2 client secret (for client_credentials) | — |
+| `--tenant` | | Tenant ID (separates token storage per tenant) | — |
 | `--output` | | Output format (json/text) | `json` |
 | `--pretty` | | Pretty-print JSON | `false` |
 | `-v, --verbose` | | Verbose output | `false` |
@@ -247,20 +252,29 @@ a2a-ask task cancel <url> --task-id <id> [options]
 
 ### `a2a-ask auth login <url>`
 
-Interactively authenticate with an A2A agent using OAuth2 device code flow.
+Interactively authenticate with an A2A agent using OAuth2 device code flow or client credentials.
 
 ```bash
-a2a-ask auth login <url>
+a2a-ask auth login <url> [--client-id <id> --client-secret <secret>] [--tenant <id>]
 ```
 
-This reads the agent card's security schemes and runs the appropriate interactive authentication flow. The obtained token is stored for reuse. Stored tokens are automatically used by subsequent commands and auto-refreshed when expired (if a refresh token is available).
+| Option | Description |
+|--------|-------------|
+| `--client-id` | OAuth2 client ID (triggers client_credentials flow) |
+| `--client-secret` | OAuth2 client secret |
+| `--tenant` | Tenant ID (separates token storage per tenant) |
+
+**Without** `--client-id`: Runs interactive device code flow (displays a code and URL for the user to visit).
+**With** `--client-id` and `--client-secret`: Runs non-interactive client_credentials flow (for service-to-service auth).
+
+The obtained token is stored for reuse. Stored tokens are automatically used by subsequent commands and auto-refreshed when expired (if a refresh token is available). On Windows, tokens are encrypted using DPAPI.
 
 ### `a2a-ask auth logout <url>`
 
 Remove the stored authentication token for an agent.
 
 ```bash
-a2a-ask auth logout <url>
+a2a-ask auth logout <url> [--tenant <id>]
 ```
 
 ### `a2a-ask auth status <url>`
@@ -268,7 +282,7 @@ a2a-ask auth logout <url>
 Show authentication status for an agent — token validity, expiry, and whether a refresh token is available.
 
 ```bash
-a2a-ask auth status <url>
+a2a-ask auth status <url> [--tenant <id>]
 ```
 
 ### `a2a-ask version`
@@ -312,11 +326,26 @@ a2a-ask send <url> -m "message" --auth-token "user-provided-token"
 Security Schemes:
   "oauth2": OAuth2 (device code flow available)
 ```
-→ Run the interactive login first:
+→ For interactive users, run the device code login:
 ```bash
 a2a-ask auth login <url>
 ```
 This will display a device code and verification URL. Ask the user to visit the URL and enter the code. Once authenticated, the token is stored and subsequent commands will use it automatically.
+
+→ For service-to-service auth (client credentials), ask the user for their client ID and secret:
+```bash
+a2a-ask auth login <url> --client-id "my-app" --client-secret "secret"
+```
+
+**HTTP Basic auth required:**
+```
+Security Schemes:
+  "basic_auth": HTTP Basic
+```
+→ Ask the user for their username and password:
+```bash
+a2a-ask send <url> -m "message" --auth-user "username" --auth-password "password"
+```
 
 **Custom headers:**
 For non-standard auth mechanisms, use:
@@ -329,11 +358,13 @@ a2a-ask send <url> -m "message" --auth-header "X-Custom-Auth=secret-value"
 Follow this logic when an agent requires authentication:
 
 1. Check the agent card's security schemes (from `discover` output)
-2. If **API Key** → ask the user for the key → pass via `--api-key`
+2. If **API Key** → ask the user for the key → pass via `--api-key` (with `--api-key-location` if not header)
 3. If **HTTP Bearer** → ask the user for a token → pass via `--auth-token`
-4. If **OAuth2 with device code** → run `a2a-ask auth login <url>` → interactive flow
-5. If **OpenID Connect** → extract the issuer URL, guide user to obtain a token, pass via `--auth-token`
-6. If **auth-required** state returned mid-task → obtain credentials and retry the same task with `--task-id` and auth options
+4. If **HTTP Basic** → ask the user for credentials → pass via `--auth-user` + `--auth-password`
+5. If **OAuth2 with device code** → run `a2a-ask auth login <url>` → interactive flow
+6. If **OAuth2 with client credentials** → ask for client ID/secret → `a2a-ask auth login <url> --client-id <id> --client-secret <secret>`
+7. If **OpenID Connect** → extract the issuer URL, guide user to obtain a token, pass via `--auth-token`
+8. If **auth-required** state returned mid-task → obtain credentials and retry the same task with `--task-id` and auth options
 
 ## Streaming vs Polling
 
@@ -527,10 +558,12 @@ The CLI automatically detects the agent's protocol version and communicates acco
 
 ## Limitations
 
-1. **OAuth2 authorization code flow** — Only device code flow is supported interactively. For auth code flow, obtain the token externally and pass via `--auth-token`.
+1. **OAuth2 authorization code flow** — Only device code flow and client credentials are supported interactively. For auth code flow, obtain the token externally and pass via `--auth-token`.
 2. **mTLS** — Mutual TLS authentication is not yet supported.
 3. **Push notifications** — The CLI cannot receive push notifications (it's a client, not a server). Use streaming or polling instead.
 4. **Binary output in JSON mode** — File artifacts are base64-encoded inline. Use `--save-artifacts` for large files.
+5. **Query-string API keys** — The `--api-key-location query` option is recognized but may not work with all A2A SDK versions. Use header-based API keys when possible.
+6. **Token encryption** — Token storage is encrypted with DPAPI on Windows only. On macOS/Linux, tokens are stored as plaintext JSON with restricted file permissions (0600).
 
 ## Installing This Skill
 

@@ -6,6 +6,7 @@ namespace A2AAsk.Auth;
 /// <summary>
 /// Implements the OAuth2 Device Code flow for CLI-based authentication
 /// using Duende.IdentityModel for standards-compliant token requests.
+/// Supports OIDC/OAuth2 metadata discovery for endpoint resolution.
 /// </summary>
 public class DeviceCodeFlow
 {
@@ -18,7 +19,9 @@ public class DeviceCodeFlow
         _httpClient = httpClient ?? new HttpClient();
     }
 
-    public async Task<TokenResult?> AuthenticateAsync(CancellationToken cancellationToken = default)
+    public async Task<TokenResult?> AuthenticateAsync(
+        IEnumerable<string>? requiredScopes = null,
+        CancellationToken cancellationToken = default)
     {
         string? tokenUrl = null;
         string? deviceAuthUrlStr = null;
@@ -45,10 +48,22 @@ public class DeviceCodeFlow
             }
         }
 
+        // Try OIDC/OAuth2 metadata discovery if we don't have endpoints
+        if (tokenUrl == null && !string.IsNullOrEmpty(_scheme.OAuth2MetadataUrl))
+        {
+            var disco = await DiscoverEndpointsAsync(_scheme.OAuth2MetadataUrl, cancellationToken);
+            if (disco != null)
+            {
+                tokenUrl = disco.TokenEndpoint;
+                deviceAuthUrlStr ??= disco.DeviceAuthorizationEndpoint;
+            }
+        }
+
         if (tokenUrl == null)
             throw new InvalidOperationException(
                 "Cannot determine token URL from OAuth2 scheme. " +
-                "The agent's OAuth2 configuration doesn't include device code, authorization code, or client credentials flows.");
+                "The agent's OAuth2 configuration doesn't include device code, authorization code, or client credentials flows, " +
+                "and no OAuth2 metadata URL is available.");
 
         // Derive device auth URL if not explicit
         var tokenUri = new Uri(tokenUrl);
@@ -58,7 +73,13 @@ public class DeviceCodeFlow
         else
             deviceAuthUrl = DeriveDeviceAuthorizationUrl(tokenUri).ToString();
 
-        var scopeString = scopes != null ? string.Join(" ", scopes.Keys) : "";
+        // Merge flow-defined scopes with required scopes from SecurityRequirements
+        var allScopes = new HashSet<string>();
+        if (scopes != null)
+            foreach (var s in scopes.Keys) allScopes.Add(s);
+        if (requiredScopes != null)
+            foreach (var s in requiredScopes) allScopes.Add(s);
+        var scopeString = string.Join(" ", allScopes);
 
         // Step 1: Request device authorization using IdentityModel
         var deviceAuthResponse = await _httpClient.RequestDeviceAuthorizationAsync(
@@ -175,6 +196,22 @@ public class DeviceCodeFlow
         };
     }
 
+    /// <summary>
+    /// Discover OAuth2/OIDC endpoints from a metadata URL.
+    /// </summary>
+    internal async Task<DiscoveryDocumentResponse?> DiscoverEndpointsAsync(
+        string metadataUrl, CancellationToken cancellationToken = default)
+    {
+        var disco = await _httpClient.GetDiscoveryDocumentAsync(
+            new DiscoveryDocumentRequest
+            {
+                Address = metadataUrl,
+                Policy = new DiscoveryPolicy { RequireHttps = false }
+            }, cancellationToken);
+
+        return disco.IsError ? null : disco;
+    }
+
     private static Uri DeriveDeviceAuthorizationUrl(Uri tokenUrl)
     {
         var path = tokenUrl.AbsolutePath;
@@ -184,5 +221,76 @@ public class DeviceCodeFlow
             return new Uri(tokenUrl, devicePath);
         }
         return new Uri(tokenUrl, "./devicecode");
+    }
+}
+
+/// <summary>
+/// Implements the OAuth2 Client Credentials flow for service-to-service authentication.
+/// </summary>
+public static class ClientCredentialsFlow
+{
+    public static async Task<TokenResult?> AuthenticateAsync(
+        OAuth2SecurityScheme scheme,
+        string clientId,
+        string clientSecret,
+        string? scope = null,
+        HttpClient? httpClient = null,
+        CancellationToken cancellationToken = default)
+    {
+        var client = httpClient ?? new HttpClient();
+        string? tokenUrl = null;
+
+        if (scheme.Flows?.ClientCredentials != null)
+        {
+            tokenUrl = scheme.Flows.ClientCredentials.TokenUrl;
+            scope ??= scheme.Flows.ClientCredentials.Scopes != null
+                ? string.Join(" ", scheme.Flows.ClientCredentials.Scopes.Keys)
+                : null;
+        }
+
+        // Try OAuth2 metadata discovery
+        if (tokenUrl == null && !string.IsNullOrEmpty(scheme.OAuth2MetadataUrl))
+        {
+            var disco = await client.GetDiscoveryDocumentAsync(
+                new DiscoveryDocumentRequest
+                {
+                    Address = scheme.OAuth2MetadataUrl,
+                    Policy = new DiscoveryPolicy { RequireHttps = false }
+                }, cancellationToken);
+
+            if (!disco.IsError)
+                tokenUrl = disco.TokenEndpoint;
+        }
+
+        if (tokenUrl == null)
+            throw new InvalidOperationException(
+                "Cannot determine token URL for client credentials flow. " +
+                "No client_credentials flow or OAuth2 metadata URL found in agent card.");
+
+        var response = await client.RequestClientCredentialsTokenAsync(
+            new ClientCredentialsTokenRequest
+            {
+                Address = tokenUrl,
+                ClientId = clientId,
+                ClientSecret = clientSecret,
+                Scope = scope
+            }, cancellationToken);
+
+        if (response.IsError)
+        {
+            Console.Error.WriteLine($"Client credentials auth failed: {response.Error} - {response.ErrorDescription}");
+            return null;
+        }
+
+        return new TokenResult
+        {
+            AccessToken = response.AccessToken!,
+            RefreshToken = response.RefreshToken,
+            ExpiresAt = response.ExpiresIn > 0
+                ? DateTime.UtcNow.AddSeconds(response.ExpiresIn)
+                : null,
+            TokenType = response.TokenType ?? "Bearer",
+            TokenUrl = tokenUrl
+        };
     }
 }

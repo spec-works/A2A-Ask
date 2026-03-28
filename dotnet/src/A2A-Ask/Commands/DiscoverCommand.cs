@@ -27,6 +27,7 @@ public static class DiscoverCommand
 
         var authTokenOption = CommonOptions.AuthToken();
         var authHeaderOption = CommonOptions.AuthHeader();
+        var tenantOption = CommonOptions.Tenant();
 
         var command = new Command("discover", "Fetch and display an A2A agent card")
         {
@@ -34,7 +35,8 @@ public static class DiscoverCommand
             wellKnownOption,
             extendedOption,
             authTokenOption,
-            authHeaderOption
+            authHeaderOption,
+            tenantOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
@@ -44,6 +46,7 @@ public static class DiscoverCommand
             var extended = context.ParseResult.GetValueForOption(extendedOption);
             var authToken = context.ParseResult.GetValueForOption(authTokenOption);
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
+            var tenant = context.ParseResult.GetValueForOption(tenantOption);
             var output = context.ParseResult.GetValueForOption(
                 context.ParseResult.RootCommandResult.Command.Options
                     .OfType<Option<string>>().First(o => o.Name == "output"))!;
@@ -59,7 +62,8 @@ public static class DiscoverCommand
                 var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
                     url,
                     authToken: authToken,
-                    authHeader: authHeader);
+                    authHeader: authHeader,
+                    tenant: tenant);
 
                 var useWellKnown = wellKnown && !url.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
 

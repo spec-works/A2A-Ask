@@ -31,6 +31,7 @@
     <!-- A2A SDK project references (version-negotiation branch) -->
     <PackageReference Include="Duende.IdentityModel" Version="8.1.0" />
     <PackageReference Include="Duende.IdentityModel.OidcClient" Version="7.1.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.4" />
     <ProjectReference Include="$(A2ASdkRoot)\src\A2A\A2A.csproj" />
     <ProjectReference Include="$(A2ASdkRoot)\src\A2A.V0_3Compat\A2A.V0_3Compat.csproj" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />

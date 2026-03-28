@@ -23,14 +23,21 @@ public static class AuthCommand
             name: "url",
             description: "Agent base URL to authenticate against");
 
+        var clientIdOption = CommonOptions.ClientId();
+        var clientSecretOption = CommonOptions.ClientSecret();
+        var tenantOption = CommonOptions.Tenant();
+
         var command = new Command("login", "Interactively authenticate with an A2A agent")
         {
-            urlArgument
+            urlArgument, clientIdOption, clientSecretOption, tenantOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
         {
             var url = context.ParseResult.GetValueForArgument(urlArgument);
+            var clientId = context.ParseResult.GetValueForOption(clientIdOption);
+            var clientSecret = context.ParseResult.GetValueForOption(clientSecretOption);
+            var tenant = context.ParseResult.GetValueForOption(tenantOption);
             var verbose = context.ParseResult.GetValueForOption(
                 context.ParseResult.RootCommandResult.Command.Options
                     .OfType<Option<bool>>().First(o => o.Name == "verbose"));
@@ -57,20 +64,56 @@ public static class AuthCommand
                 }
                 Console.WriteLine();
 
-                var oauth2Scheme = FindOAuth2Scheme(card);
-                if (oauth2Scheme.HasValue)
-                {
-                    var (schemeName, oauth2) = oauth2Scheme.Value;
-                    Console.WriteLine($"Using OAuth2 flow via '{schemeName}'...");
-                    Console.WriteLine();
+                var storageKey = TokenStore.BuildStorageKey(url, tenant);
 
-                    var flow = new DeviceCodeFlow(oauth2);
-                    var tokenResult = await flow.AuthenticateAsync(context.GetCancellationToken());
+                // If client_id and client_secret provided, use client credentials flow
+                if (!string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(clientSecret))
+                {
+                    var oauth2Scheme = FindOAuth2Scheme(card);
+                    if (!oauth2Scheme.HasValue)
+                    {
+                        Console.Error.WriteLine("No OAuth2 scheme found in agent card for client credentials.");
+                        context.ExitCode = 1;
+                        return;
+                    }
+
+                    Console.WriteLine("Using OAuth2 client_credentials flow...");
+                    var tokenResult = await ClientCredentialsFlow.AuthenticateAsync(
+                        oauth2Scheme.Value.Scheme, clientId, clientSecret,
+                        cancellationToken: context.GetCancellationToken());
 
                     if (tokenResult != null)
                     {
                         var store = new TokenStore();
-                        await store.SaveTokenAsync(url, tokenResult);
+                        await store.SaveTokenAsync(storageKey, tokenResult);
+                        Console.WriteLine();
+                        Console.WriteLine($"Authenticated successfully. Token stored for {url}");
+                    }
+                    else
+                    {
+                        context.ExitCode = 1;
+                    }
+                    return;
+                }
+
+                var oauth2 = FindOAuth2Scheme(card);
+                if (oauth2.HasValue)
+                {
+                    var (schemeName, scheme) = oauth2.Value;
+                    Console.WriteLine($"Using OAuth2 device code flow via '{schemeName}'...");
+                    Console.WriteLine();
+
+                    // Extract required scopes from SecurityRequirements
+                    var requiredScopes = ExtractRequiredScopes(card, schemeName);
+
+                    var flow = new DeviceCodeFlow(scheme);
+                    var tokenResult = await flow.AuthenticateAsync(
+                        requiredScopes, context.GetCancellationToken());
+
+                    if (tokenResult != null)
+                    {
+                        var store = new TokenStore();
+                        await store.SaveTokenAsync(storageKey, tokenResult);
                         Console.WriteLine();
                         Console.WriteLine($"Authenticated successfully. Token stored for {url}");
                         Console.WriteLine("Subsequent a2a-ask commands will use the stored token automatically.");
@@ -92,7 +135,10 @@ public static class AuthCommand
                         if (scheme.SchemeCase == SecuritySchemeCase.HttpAuth)
                         {
                             var http = scheme.HttpAuthSecurityScheme!;
-                            Console.WriteLine($"  --auth-token <your-{http.Scheme ?? "bearer"}-token>");
+                            if (string.Equals(http.Scheme, "basic", StringComparison.OrdinalIgnoreCase))
+                                Console.WriteLine($"  --auth-user <username> --auth-password <password>");
+                            else
+                                Console.WriteLine($"  --auth-token <your-{http.Scheme ?? "bearer"}-token>");
                         }
                         else if (scheme.SchemeCase == SecuritySchemeCase.ApiKey)
                         {
@@ -159,27 +205,45 @@ public static class AuthCommand
         return null;
     }
 
+    private static IEnumerable<string>? ExtractRequiredScopes(AgentCard card, string schemeName)
+    {
+        if (card.SecurityRequirements == null) return null;
+
+        var scopes = new List<string>();
+        foreach (var req in card.SecurityRequirements)
+        {
+            if (req.Schemes != null && req.Schemes.TryGetValue(schemeName, out var scopeList))
+            {
+                scopes.AddRange(scopeList.List);
+            }
+        }
+        return scopes.Count > 0 ? scopes : null;
+    }
+
     private static Command CreateLogoutCommand()
     {
         var urlArgument = new Argument<string>(
             name: "url",
             description: "Agent URL to remove stored token for");
+        var tenantOption = CommonOptions.Tenant();
 
         var command = new Command("logout", "Remove stored authentication token for an agent")
         {
-            urlArgument
+            urlArgument, tenantOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
         {
             var url = context.ParseResult.GetValueForArgument(urlArgument);
+            var tenant = context.ParseResult.GetValueForOption(tenantOption);
             try
             {
                 var store = new TokenStore();
-                var token = await store.LoadTokenAsync(url);
+                var storageKey = TokenStore.BuildStorageKey(url, tenant);
+                var token = await store.LoadTokenAsync(storageKey);
                 if (token != null)
                 {
-                    await store.RemoveTokenAsync(url);
+                    await store.RemoveTokenAsync(storageKey);
                     Console.WriteLine($"Token removed for {url}");
                 }
                 else
@@ -202,19 +266,22 @@ public static class AuthCommand
         var urlArgument = new Argument<string>(
             name: "url",
             description: "Agent URL to check authentication status for");
+        var tenantOption = CommonOptions.Tenant();
 
         var command = new Command("status", "Show authentication status for an agent")
         {
-            urlArgument
+            urlArgument, tenantOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
         {
             var url = context.ParseResult.GetValueForArgument(urlArgument);
+            var tenant = context.ParseResult.GetValueForOption(tenantOption);
             try
             {
                 var store = new TokenStore();
-                var token = await store.LoadTokenAsync(url);
+                var storageKey = TokenStore.BuildStorageKey(url, tenant);
+                var token = await store.LoadTokenAsync(storageKey);
                 if (token == null)
                 {
                     Console.WriteLine($"No stored token for {url}");

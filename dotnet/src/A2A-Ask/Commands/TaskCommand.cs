@@ -26,12 +26,15 @@ public static class TaskCommand
         var authHeaderOption = CommonOptions.AuthHeader();
         var apiKeyOption = CommonOptions.ApiKey();
         var apiKeyHeaderOption = CommonOptions.ApiKeyHeader();
+        var authUserOption = CommonOptions.AuthUser();
+        var authPasswordOption = CommonOptions.AuthPassword();
         var tenantOption = CommonOptions.Tenant();
 
         var command = new Command("get", "Get the current state of a task")
         {
             urlArgument, taskIdOption, historyLengthOption,
-            authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption, tenantOption
+            authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption,
+            authUserOption, authPasswordOption, tenantOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
@@ -43,6 +46,8 @@ public static class TaskCommand
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
             var apiKeyHeader = context.ParseResult.GetValueForOption(apiKeyHeaderOption);
+            var authUser = context.ParseResult.GetValueForOption(authUserOption);
+            var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
             var output = context.ParseResult.GetValueForOption(
                 context.ParseResult.RootCommandResult.Command.Options
@@ -58,7 +63,8 @@ public static class TaskCommand
             {
                 var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
                     url, authToken: authToken, authHeader: authHeader,
-                    apiKey: apiKey, apiKeyHeader: apiKeyHeader);
+                    apiKey: apiKey, apiKeyHeader: apiKeyHeader,
+                    authUser: authUser, authPassword: authPassword, tenant: tenant);
 
                 var ct = context.GetCancellationToken();
                 var client = await CommonOptions.CreateClientAsync(
@@ -93,13 +99,15 @@ public static class TaskCommand
         var authHeaderOption = CommonOptions.AuthHeader();
         var apiKeyOption = CommonOptions.ApiKey();
         var apiKeyHeaderOption = CommonOptions.ApiKeyHeader();
+        var authUserOption = CommonOptions.AuthUser();
+        var authPasswordOption = CommonOptions.AuthPassword();
         var tenantOption = CommonOptions.Tenant();
 
         var command = new Command("list", "List tasks with optional filtering")
         {
             urlArgument, contextIdOption, statusOption, pageSizeOption, pageTokenOption,
             authTokenOption, authHeaderOption, apiKeyOption,
-            apiKeyHeaderOption, tenantOption
+            apiKeyHeaderOption, authUserOption, authPasswordOption, tenantOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
@@ -113,6 +121,8 @@ public static class TaskCommand
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
             var apiKeyHeader = context.ParseResult.GetValueForOption(apiKeyHeaderOption);
+            var authUser = context.ParseResult.GetValueForOption(authUserOption);
+            var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
             var output = context.ParseResult.GetValueForOption(
                 context.ParseResult.RootCommandResult.Command.Options
@@ -128,7 +138,8 @@ public static class TaskCommand
             {
                 var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
                     url, authToken: authToken, authHeader: authHeader,
-                    apiKey: apiKey, apiKeyHeader: apiKeyHeader);
+                    apiKey: apiKey, apiKeyHeader: apiKeyHeader,
+                    authUser: authUser, authPassword: authPassword, tenant: tenant);
 
                 var ct = context.GetCancellationToken();
                 var client = await CommonOptions.CreateClientAsync(
@@ -164,12 +175,15 @@ public static class TaskCommand
         var authHeaderOption = CommonOptions.AuthHeader();
         var apiKeyOption = CommonOptions.ApiKey();
         var apiKeyHeaderOption = CommonOptions.ApiKeyHeader();
+        var authUserOption = CommonOptions.AuthUser();
+        var authPasswordOption = CommonOptions.AuthPassword();
         var tenantOption = CommonOptions.Tenant();
 
         var command = new Command("cancel", "Cancel a running task")
         {
             urlArgument, taskIdOption,
-            authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption, tenantOption
+            authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption,
+            authUserOption, authPasswordOption, tenantOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
@@ -180,6 +194,8 @@ public static class TaskCommand
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
             var apiKeyHeader = context.ParseResult.GetValueForOption(apiKeyHeaderOption);
+            var authUser = context.ParseResult.GetValueForOption(authUserOption);
+            var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
             var output = context.ParseResult.GetValueForOption(
                 context.ParseResult.RootCommandResult.Command.Options
@@ -195,7 +211,8 @@ public static class TaskCommand
             {
                 var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
                     url, authToken: authToken, authHeader: authHeader,
-                    apiKey: apiKey, apiKeyHeader: apiKeyHeader);
+                    apiKey: apiKey, apiKeyHeader: apiKeyHeader,
+                    authUser: authUser, authPassword: authPassword, tenant: tenant);
 
                 var ct = context.GetCancellationToken();
                 var client = await CommonOptions.CreateClientAsync(

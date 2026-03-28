@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Text;
 
 namespace A2AAsk.Auth;
 
@@ -14,7 +15,10 @@ public static class AuthConfigurator
         string? authToken = null,
         string? authHeader = null,
         string? apiKey = null,
-        string? apiKeyHeader = null)
+        string? apiKeyHeader = null,
+        string? apiKeyLocation = null,
+        string? authUser = null,
+        string? authPassword = null)
     {
         var client = new HttpClient();
 
@@ -24,10 +28,34 @@ public static class AuthConfigurator
                 new AuthenticationHeaderValue("Bearer", authToken);
         }
 
+        if (!string.IsNullOrEmpty(authUser))
+        {
+            var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{authUser}:{authPassword ?? ""}"));
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Basic", encoded);
+        }
+
         if (!string.IsNullOrEmpty(apiKey))
         {
-            var headerName = apiKeyHeader ?? "X-API-Key";
-            client.DefaultRequestHeaders.Add(headerName, apiKey);
+            var location = apiKeyLocation?.ToLowerInvariant() ?? "header";
+            switch (location)
+            {
+                case "cookie":
+                    var cookieName = apiKeyHeader ?? "api_key";
+                    client.DefaultRequestHeaders.Add("Cookie", $"{cookieName}={apiKey}");
+                    break;
+                case "query":
+                    // Query string API keys are handled at request time, not here.
+                    // Store as a custom header that callers can read.
+                    // For now, set it as a default header — URL rewriting is the caller's responsibility.
+                    Console.Error.WriteLine($"Note: API key will be sent as query parameter '{apiKeyHeader ?? "api_key"}'.");
+                    Console.Error.WriteLine("Query-string API keys require URL modification per-request.");
+                    break;
+                default: // "header"
+                    var headerName = apiKeyHeader ?? "X-API-Key";
+                    client.DefaultRequestHeaders.Add(headerName, apiKey);
+                    break;
+            }
         }
 
         if (!string.IsNullOrEmpty(authHeader))
@@ -52,17 +80,22 @@ public static class AuthConfigurator
         string? authToken = null,
         string? authHeader = null,
         string? apiKey = null,
-        string? apiKeyHeader = null)
+        string? apiKeyHeader = null,
+        string? authUser = null,
+        string? authPassword = null,
+        string? tenant = null)
     {
         // Explicit auth always wins
-        if (!string.IsNullOrEmpty(authToken) || !string.IsNullOrEmpty(apiKey) || !string.IsNullOrEmpty(authHeader))
+        if (!string.IsNullOrEmpty(authToken) || !string.IsNullOrEmpty(apiKey)
+            || !string.IsNullOrEmpty(authHeader) || !string.IsNullOrEmpty(authUser))
         {
-            return CreateHttpClient(authToken, authHeader, apiKey, apiKeyHeader);
+            return CreateHttpClient(authToken, authHeader, apiKey, apiKeyHeader, authUser, authPassword);
         }
 
         // Try loading stored token
         var store = new TokenStore();
-        var storedToken = await store.LoadTokenAsync(agentUrl);
+        var storageKey = TokenStore.BuildStorageKey(agentUrl, tenant);
+        var storedToken = await store.LoadTokenAsync(storageKey);
         if (storedToken != null)
         {
             if (!storedToken.IsExpired)
@@ -76,7 +109,7 @@ public static class AuthConfigurator
                 var refreshed = await DeviceCodeFlow.RefreshTokenAsync(storedToken);
                 if (refreshed != null)
                 {
-                    await store.SaveTokenAsync(agentUrl, refreshed);
+                    await store.SaveTokenAsync(storageKey, refreshed);
                     Console.Error.WriteLine("Token refreshed automatically.");
                     return CreateHttpClient(authToken: refreshed.AccessToken);
                 }

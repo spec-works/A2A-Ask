@@ -51,6 +51,10 @@ public static class SendCommand
         var authHeaderOption = CommonOptions.AuthHeader();
         var apiKeyOption = CommonOptions.ApiKey();
         var apiKeyHeaderOption = CommonOptions.ApiKeyHeader();
+        var authUserOption = CommonOptions.AuthUser();
+        var authPasswordOption = CommonOptions.AuthPassword();
+        var clientIdOption = CommonOptions.ClientId();
+        var clientSecretOption = CommonOptions.ClientSecret();
         var bindingOption = CommonOptions.Binding();
         var a2aVersionOption = CommonOptions.A2AVersion();
         var tenantOption = CommonOptions.Tenant();
@@ -72,6 +76,10 @@ public static class SendCommand
             authHeaderOption,
             apiKeyOption,
             apiKeyHeaderOption,
+            authUserOption,
+            authPasswordOption,
+            clientIdOption,
+            clientSecretOption,
             bindingOption,
             a2aVersionOption,
             tenantOption,
@@ -105,6 +113,10 @@ public static class SendCommand
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
             var apiKeyHeader = context.ParseResult.GetValueForOption(apiKeyHeaderOption);
+            var authUser = context.ParseResult.GetValueForOption(authUserOption);
+            var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
+            var clientId = context.ParseResult.GetValueForOption(clientIdOption);
+            var clientSecret = context.ParseResult.GetValueForOption(clientSecretOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
             var saveArtifacts = context.ParseResult.GetValueForOption(saveArtifactsOption);
             var output = context.ParseResult.GetValueForOption(
@@ -124,7 +136,10 @@ public static class SendCommand
                     authToken: authToken,
                     authHeader: authHeader,
                     apiKey: apiKey,
-                    apiKeyHeader: apiKeyHeader);
+                    apiKeyHeader: apiKeyHeader,
+                    authUser: authUser,
+                    authPassword: authPassword,
+                    tenant: tenant);
 
                 var client = await CommonOptions.CreateClientAsync(
                     url, httpClient, context.GetCancellationToken());
