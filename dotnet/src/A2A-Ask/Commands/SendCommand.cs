@@ -3,6 +3,7 @@ using System.CommandLine.Invocation;
 using System.Text.Json;
 using A2A;
 using A2AAsk.Auth;
+using A2AAsk.Catalog;
 using A2AAsk.Output;
 
 namespace A2AAsk.Commands;
@@ -11,9 +12,9 @@ public static class SendCommand
 {
     public static Command Create()
     {
-        var urlArgument = new Argument<string>(
-            name: "url",
-            description: "Agent endpoint URL");
+        var targetArgument = new Argument<string>(
+            name: "target",
+            description: "Agent target URL or @agent@catalog reference");
 
         var messageOption = new Option<string?>(
             aliases: ["--message", "-m"],
@@ -62,7 +63,7 @@ public static class SendCommand
 
         var command = new Command("send", "Send a message to an A2A agent")
         {
-            urlArgument,
+            targetArgument,
             messageOption,
             fileOption,
             dataOption,
@@ -99,7 +100,7 @@ public static class SendCommand
 
         command.SetHandler(async (InvocationContext context) =>
         {
-            var url = context.ParseResult.GetValueForArgument(urlArgument);
+            var target = context.ParseResult.GetValueForArgument(targetArgument);
             var message = context.ParseResult.GetValueForOption(messageOption);
             var file = context.ParseResult.GetValueForOption(fileOption);
             var data = context.ParseResult.GetValueForOption(dataOption);
@@ -118,6 +119,7 @@ public static class SendCommand
             var clientId = context.ParseResult.GetValueForOption(clientIdOption);
             var clientSecret = context.ParseResult.GetValueForOption(clientSecretOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
+            var a2aVersion = context.ParseResult.GetValueForOption(a2aVersionOption) ?? "1.0";
             var saveArtifacts = context.ParseResult.GetValueForOption(saveArtifactsOption);
             var output = context.ParseResult.GetValueForOption(
                 context.ParseResult.RootCommandResult.Command.Options
@@ -131,8 +133,12 @@ public static class SendCommand
 
             try
             {
+                var parsedTarget = TargetParser.Parse(target);
+                var resolvedTarget = parsedTarget is DirectUrl
+                    ? new CommonOptions.ResolvedTarget { RequestUrl = target }
+                    : await CommonOptions.ResolveTargetAsync(target, context.GetCancellationToken());
                 var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
-                    url,
+                    resolvedTarget.RequestUrl,
                     authToken: authToken,
                     authHeader: authHeader,
                     apiKey: apiKey,
@@ -142,7 +148,10 @@ public static class SendCommand
                     tenant: tenant);
 
                 var client = await CommonOptions.CreateClientAsync(
-                    url, httpClient, context.GetCancellationToken());
+                    resolvedTarget,
+                    httpClient,
+                    a2aVersion,
+                    context.GetCancellationToken());
 
                 var parts = BuildParts(message, file, data);
 
@@ -159,7 +168,7 @@ public static class SendCommand
                 if (!string.IsNullOrEmpty(accept))
                     config.AcceptedOutputModes = accept.Split(',', StringSplitOptions.TrimEntries).ToList();
                 if (returnImmediately)
-                    config.Blocking = false;
+                    config.ReturnImmediately = true;
                 if (historyLength.HasValue)
                     config.HistoryLength = historyLength.Value;
 

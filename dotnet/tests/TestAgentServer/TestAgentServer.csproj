@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="$(A2ASdkRoot)\src\A2A\A2A.csproj" />
     <ProjectReference Include="$(A2ASdkRoot)\src\A2A.AspNetCore\A2A.AspNetCore.csproj" />
+    <ProjectReference Include="$(A2ASdkRoot)\src\A2A.V0_3\A2A.V0_3.csproj" />
   </ItemGroup>
 
 </Project>

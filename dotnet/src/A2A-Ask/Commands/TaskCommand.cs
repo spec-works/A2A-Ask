@@ -29,12 +29,13 @@ public static class TaskCommand
         var authUserOption = CommonOptions.AuthUser();
         var authPasswordOption = CommonOptions.AuthPassword();
         var tenantOption = CommonOptions.Tenant();
+        var a2aVersionOption = CommonOptions.A2AVersion();
 
         var command = new Command("get", "Get the current state of a task")
         {
             urlArgument, taskIdOption, historyLengthOption,
             authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption,
-            authUserOption, authPasswordOption, tenantOption
+            authUserOption, authPasswordOption, tenantOption, a2aVersionOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
@@ -42,6 +43,7 @@ public static class TaskCommand
             var url = context.ParseResult.GetValueForArgument(urlArgument);
             var taskId = context.ParseResult.GetValueForOption(taskIdOption)!;
             var historyLength = context.ParseResult.GetValueForOption(historyLengthOption);
+            var a2aVersion = context.ParseResult.GetValueForOption(a2aVersionOption) ?? "1.0";
             var authToken = context.ParseResult.GetValueForOption(authTokenOption);
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
@@ -68,7 +70,10 @@ public static class TaskCommand
 
                 var ct = context.GetCancellationToken();
                 var client = await CommonOptions.CreateClientAsync(
-                    url, httpClient, ct);
+                    url,
+                    httpClient,
+                    a2aVersion,
+                    ct);
 
                 var request = new GetTaskRequest { Id = taskId };
                 if (historyLength.HasValue)
@@ -102,12 +107,13 @@ public static class TaskCommand
         var authUserOption = CommonOptions.AuthUser();
         var authPasswordOption = CommonOptions.AuthPassword();
         var tenantOption = CommonOptions.Tenant();
+        var a2aVersionOption = CommonOptions.A2AVersion();
 
         var command = new Command("list", "List tasks with optional filtering")
         {
             urlArgument, contextIdOption, statusOption, pageSizeOption, pageTokenOption,
             authTokenOption, authHeaderOption, apiKeyOption,
-            apiKeyHeaderOption, authUserOption, authPasswordOption, tenantOption
+            apiKeyHeaderOption, authUserOption, authPasswordOption, tenantOption, a2aVersionOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
@@ -117,6 +123,7 @@ public static class TaskCommand
             var status = context.ParseResult.GetValueForOption(statusOption);
             var pageSize = context.ParseResult.GetValueForOption(pageSizeOption);
             var pageToken = context.ParseResult.GetValueForOption(pageTokenOption);
+            var a2aVersion = context.ParseResult.GetValueForOption(a2aVersionOption) ?? "1.0";
             var authToken = context.ParseResult.GetValueForOption(authTokenOption);
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
@@ -143,7 +150,10 @@ public static class TaskCommand
 
                 var ct = context.GetCancellationToken();
                 var client = await CommonOptions.CreateClientAsync(
-                    url, httpClient, ct);
+                    url,
+                    httpClient,
+                    a2aVersion,
+                    ct);
 
                 var request = new ListTasksRequest();
                 if (!string.IsNullOrEmpty(contextId))
@@ -178,12 +188,13 @@ public static class TaskCommand
         var authUserOption = CommonOptions.AuthUser();
         var authPasswordOption = CommonOptions.AuthPassword();
         var tenantOption = CommonOptions.Tenant();
+        var a2aVersionOption = CommonOptions.A2AVersion();
 
         var command = new Command("cancel", "Cancel a running task")
         {
             urlArgument, taskIdOption,
             authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption,
-            authUserOption, authPasswordOption, tenantOption
+            authUserOption, authPasswordOption, tenantOption, a2aVersionOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
@@ -197,6 +208,7 @@ public static class TaskCommand
             var authUser = context.ParseResult.GetValueForOption(authUserOption);
             var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
+            var a2aVersion = context.ParseResult.GetValueForOption(a2aVersionOption) ?? "1.0";
             var output = context.ParseResult.GetValueForOption(
                 context.ParseResult.RootCommandResult.Command.Options
                     .OfType<Option<string>>().First(o => o.Name == "output"))!;
@@ -216,7 +228,10 @@ public static class TaskCommand
 
                 var ct = context.GetCancellationToken();
                 var client = await CommonOptions.CreateClientAsync(
-                    url, httpClient, ct);
+                    url,
+                    httpClient,
+                    a2aVersion,
+                    ct);
 
                 var request = new CancelTaskRequest { Id = taskId };
                 var task = await client.CancelTaskAsync(request, ct);

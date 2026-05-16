@@ -45,6 +45,7 @@ public static class StreamCommand
         var clientIdOption = CommonOptions.ClientId();
         var clientSecretOption = CommonOptions.ClientSecret();
         var tenantOption = CommonOptions.Tenant();
+        var a2aVersionOption = CommonOptions.A2AVersion();
         var saveArtifactsOption = CommonOptions.SaveArtifacts();
 
         var command = new Command("stream", "Send a message with streaming response, or subscribe to task events")
@@ -67,6 +68,7 @@ public static class StreamCommand
             clientIdOption,
             clientSecretOption,
             tenantOption,
+            a2aVersionOption,
             saveArtifactsOption
         };
 
@@ -108,6 +110,7 @@ public static class StreamCommand
             var clientId = context.ParseResult.GetValueForOption(clientIdOption);
             var clientSecret = context.ParseResult.GetValueForOption(clientSecretOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
+            var a2aVersion = context.ParseResult.GetValueForOption(a2aVersionOption) ?? "1.0";
             var saveArtifacts = context.ParseResult.GetValueForOption(saveArtifactsOption);
             var output = context.ParseResult.GetValueForOption(
                 context.ParseResult.RootCommandResult.Command.Options
@@ -136,7 +139,10 @@ public static class StreamCommand
                 var ct = context.GetCancellationToken();
 
                 var client = await CommonOptions.CreateClientAsync(
-                    url, httpClient, ct);
+                    url,
+                    httpClient,
+                    a2aVersion,
+                    ct);
 
                 IAsyncEnumerable<StreamResponse> stream;
 
