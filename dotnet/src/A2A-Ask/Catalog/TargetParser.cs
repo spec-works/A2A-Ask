@@ -53,6 +53,26 @@ public sealed record CatalogTarget : TargetParseResult
 }
 
 /// <summary>
+/// Represents an unqualified catalog alias or agent name.
+/// </summary>
+public sealed record UnqualifiedName : TargetParseResult
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UnqualifiedName"/> record.
+    /// </summary>
+    /// <param name="name">The unqualified name.</param>
+    public UnqualifiedName(string name)
+    {
+        Name = name;
+    }
+
+    /// <summary>
+    /// Gets the unqualified name.
+    /// </summary>
+    public string Name { get; init; }
+}
+
+/// <summary>
 /// Represents a request to browse a catalog.
 /// </summary>
 public sealed record CatalogBrowse : TargetParseResult
@@ -90,42 +110,44 @@ public static class TargetParser
         }
 
         var trimmed = target.Trim();
-        if (!trimmed.StartsWith('@'))
+        if (trimmed.Contains("://", StringComparison.Ordinal))
         {
             return new DirectUrl(trimmed);
         }
 
         if (trimmed.StartsWith("@@", StringComparison.Ordinal))
         {
-            var catalogAlias = trimmed[2..].Trim();
-            if (string.IsNullOrWhiteSpace(catalogAlias))
+            return new UnqualifiedName(DecodeNameComponent(trimmed[2..], "Catalog browse targets must include a catalog alias or host.", nameof(target)));
+        }
+
+        if (trimmed.StartsWith('@'))
+        {
+            var separatorIndex = trimmed.IndexOf('@', 1);
+            if (separatorIndex >= 0)
             {
-                throw new ArgumentException("Catalog browse targets must include a catalog alias or host.", nameof(target));
+                var agentName = DecodeNameComponent(trimmed[1..separatorIndex], "Catalog agent targets must include an agent name.", nameof(target));
+                var catalogName = DecodeNameComponent(trimmed[(separatorIndex + 1)..], "Catalog agent targets must include a catalog reference.", nameof(target));
+                return new CatalogTarget(agentName, catalogName);
             }
 
-            return new CatalogBrowse(catalogAlias);
+            var bareAgentName = DecodeNameComponent(trimmed[1..], "Catalog agent targets must include an agent name.", nameof(target));
+            return new CatalogTarget(bareAgentName, null);
         }
 
-        var separatorIndex = trimmed.IndexOf('@', 1);
-        if (separatorIndex < 0)
+        var unqualifiedSeparatorIndex = trimmed.IndexOf('@');
+        if (unqualifiedSeparatorIndex >= 0)
         {
-            var agentName = trimmed[1..].Trim();
-            if (string.IsNullOrWhiteSpace(agentName))
-            {
-                throw new ArgumentException("Catalog agent targets must include an agent name.", nameof(target));
-            }
-
-            return new CatalogTarget(agentName, null);
+            var agentName = DecodeNameComponent(trimmed[..unqualifiedSeparatorIndex], "Catalog agent targets must include an agent name.", nameof(target));
+            var catalogName = DecodeNameComponent(trimmed[(unqualifiedSeparatorIndex + 1)..], "Catalog agent targets must include a catalog reference.", nameof(target));
+            return new CatalogTarget(agentName, catalogName);
         }
 
-        var name = trimmed[1..separatorIndex].Trim();
-        var catalog = trimmed[(separatorIndex + 1)..].Trim();
-        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(catalog))
+        if (trimmed.Contains('.') || trimmed.Contains(':') || trimmed.Contains('/'))
         {
-            throw new ArgumentException("Catalog agent targets must use the form @agent@catalog.", nameof(target));
+            return new DirectUrl(trimmed);
         }
 
-        return new CatalogTarget(name, catalog);
+        return new UnqualifiedName(DecodeNameComponent(trimmed, "Target must not be empty.", nameof(target)));
     }
 
     /// <summary>
@@ -147,5 +169,16 @@ public static class TargetParser
         return string.IsNullOrEmpty(parsed.AbsolutePath.Trim('/'))
             && string.IsNullOrEmpty(parsed.Query)
             && string.IsNullOrEmpty(parsed.Fragment);
+    }
+
+    private static string DecodeNameComponent(string value, string errorMessage, string paramName)
+    {
+        var decoded = value.Trim().Replace('+', ' ');
+        if (string.IsNullOrWhiteSpace(decoded))
+        {
+            throw new ArgumentException(errorMessage, paramName);
+        }
+
+        return decoded;
     }
 }

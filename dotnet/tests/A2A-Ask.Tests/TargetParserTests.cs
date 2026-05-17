@@ -5,41 +5,139 @@ namespace A2AAsk.Tests;
 public class TargetParserTests
 {
     [Fact]
-    public void Parse_DirectUrl_ReturnsDirectUrl()
+    public void Parse_NewQualifiedReference_ReturnsCatalogTarget()
     {
-        var result = TargetParser.Parse("https://example.com");
+        var result = TargetParser.Parse("agent@catalog");
 
-        var directUrl = Assert.IsType<DirectUrl>(result);
-        Assert.Equal("https://example.com", directUrl.Url);
+        var catalogTarget = Assert.IsType<CatalogTarget>(result);
+        Assert.Equal("agent", catalogTarget.AgentName);
+        Assert.Equal("catalog", catalogTarget.CatalogAlias);
     }
 
     [Fact]
-    public void Parse_AgentOnly_ReturnsCatalogTargetWithoutAlias()
+    public void Parse_NewQualifiedReference_DecodesSpaces()
     {
-        var result = TargetParser.Parse("@tax");
+        var result = TargetParser.Parse("my+cool+agent@my+catalog");
 
         var catalogTarget = Assert.IsType<CatalogTarget>(result);
-        Assert.Equal("tax", catalogTarget.AgentName);
+        Assert.Equal("my cool agent", catalogTarget.AgentName);
+        Assert.Equal("my catalog", catalogTarget.CatalogAlias);
+    }
+
+    [Fact]
+    public void Parse_BareCatalogName_ReturnsUnqualifiedName()
+    {
+        var result = TargetParser.Parse("mycatalog");
+
+        var unqualified = Assert.IsType<UnqualifiedName>(result);
+        Assert.Equal("mycatalog", unqualified.Name);
+    }
+
+    [Fact]
+    public void Parse_BareCatalogName_DecodesSpaces()
+    {
+        var result = TargetParser.Parse("my+catalog");
+
+        var unqualified = Assert.IsType<UnqualifiedName>(result);
+        Assert.Equal("my catalog", unqualified.Name);
+    }
+
+    [Fact]
+    public void Parse_LocalhostWithPort_ReturnsDirectUrl()
+    {
+        var result = TargetParser.Parse("localhost:5000");
+
+        var directUrl = Assert.IsType<DirectUrl>(result);
+        Assert.Equal("localhost:5000", directUrl.Url);
+    }
+
+    [Fact]
+    public void Parse_DomainName_ReturnsDirectUrl()
+    {
+        var result = TargetParser.Parse("example.com");
+
+        var directUrl = Assert.IsType<DirectUrl>(result);
+        Assert.Equal("example.com", directUrl.Url);
+    }
+
+    [Fact]
+    public void Parse_DomainPath_ReturnsDirectUrl()
+    {
+        var result = TargetParser.Parse("example.com/path");
+
+        var directUrl = Assert.IsType<DirectUrl>(result);
+        Assert.Equal("example.com/path", directUrl.Url);
+    }
+
+    [Fact]
+    public void Parse_HttpsUrl_ReturnsDirectUrl()
+    {
+        var result = TargetParser.Parse("https://foo.com");
+
+        var directUrl = Assert.IsType<DirectUrl>(result);
+        Assert.Equal("https://foo.com", directUrl.Url);
+    }
+
+    [Fact]
+    public void Parse_BackCompatBrowse_ReturnsUnqualifiedName()
+    {
+        var result = TargetParser.Parse("@@catalog");
+
+        var unqualified = Assert.IsType<UnqualifiedName>(result);
+        Assert.Equal("catalog", unqualified.Name);
+    }
+
+    [Fact]
+    public void Parse_BackCompatBrowse_DecodesSpaces()
+    {
+        var result = TargetParser.Parse("@@my+catalog");
+
+        var unqualified = Assert.IsType<UnqualifiedName>(result);
+        Assert.Equal("my catalog", unqualified.Name);
+    }
+
+    [Fact]
+    public void Parse_BackCompatQualifiedReference_ReturnsCatalogTarget()
+    {
+        var result = TargetParser.Parse("@agent@catalog");
+
+        var catalogTarget = Assert.IsType<CatalogTarget>(result);
+        Assert.Equal("agent", catalogTarget.AgentName);
+        Assert.Equal("catalog", catalogTarget.CatalogAlias);
+    }
+
+    [Fact]
+    public void Parse_BackCompatAgentOnly_ReturnsCatalogTargetWithoutAlias()
+    {
+        var result = TargetParser.Parse("@agent");
+
+        var catalogTarget = Assert.IsType<CatalogTarget>(result);
+        Assert.Equal("agent", catalogTarget.AgentName);
         Assert.Null(catalogTarget.CatalogAlias);
     }
 
     [Fact]
-    public void Parse_AgentAndCatalog_ReturnsCatalogTarget()
+    public void Parse_AgentWithEmptyCatalog_Throws()
     {
-        var result = TargetParser.Parse("@tax@intuit");
-
-        var catalogTarget = Assert.IsType<CatalogTarget>(result);
-        Assert.Equal("tax", catalogTarget.AgentName);
-        Assert.Equal("intuit", catalogTarget.CatalogAlias);
+        Assert.Throws<ArgumentException>(() => TargetParser.Parse("agent@"));
     }
 
     [Fact]
-    public void Parse_BrowseTarget_ReturnsCatalogBrowse()
+    public void Parse_AtOnly_Throws()
     {
-        var result = TargetParser.Parse("@@intuit");
+        Assert.Throws<ArgumentException>(() => TargetParser.Parse("@"));
+    }
 
-        var browse = Assert.IsType<CatalogBrowse>(result);
-        Assert.Equal("intuit", browse.CatalogAlias);
+    [Fact]
+    public void Parse_BackCompatBrowseWithoutCatalog_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => TargetParser.Parse("@@"));
+    }
+
+    [Fact]
+    public void Parse_Empty_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => TargetParser.Parse(string.Empty));
     }
 
     [Fact]

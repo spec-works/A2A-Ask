@@ -3,7 +3,6 @@ using System.CommandLine.Invocation;
 using System.Text.Json;
 using A2A;
 using A2AAsk.Auth;
-using A2AAsk.Catalog;
 using A2AAsk.Output;
 
 namespace A2AAsk.Commands;
@@ -14,7 +13,7 @@ public static class SendCommand
     {
         var targetArgument = new Argument<string>(
             name: "target",
-            description: "Agent target URL or @agent@catalog reference");
+            description: "Agent URL, catalog alias, or agent@catalog reference");
 
         var messageOption = new Option<string?>(
             aliases: ["--message", "-m"],
@@ -133,10 +132,7 @@ public static class SendCommand
 
             try
             {
-                var parsedTarget = TargetParser.Parse(target);
-                var resolvedTarget = parsedTarget is DirectUrl
-                    ? new CommonOptions.ResolvedTarget { RequestUrl = target }
-                    : await CommonOptions.ResolveTargetAsync(target, context.GetCancellationToken());
+                var resolvedTarget = await CommonOptions.ResolveTargetAsync(target, context.GetCancellationToken());
                 var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
                     resolvedTarget.RequestUrl,
                     authToken: authToken,

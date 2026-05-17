@@ -144,46 +144,45 @@ public sealed class CatalogInputResolver
             throw new InvalidOperationException($"No A2A agents were found in catalog '{catalogReference}'.");
         }
 
+        var matches = FindMatchingAgents(agents, agentName);
+        return matches.Count switch
+        {
+            1 => matches[0],
+            > 1 => throw CreateAmbiguousAgentException(agentName, catalogReference, matches),
+            _ => throw new InvalidOperationException(
+                $"No A2A agent matching '{agentName}' was found in catalog '{catalogReference}'. Available agents: {FormatCandidates(agents)}")
+        };
+    }
+
+    internal static IReadOnlyList<ResolvedCatalogAgent> FindMatchingAgents(
+        IReadOnlyList<ResolvedCatalogAgent> agents,
+        string agentName)
+    {
         var exactIdentifierMatches = agents
             .Where(agent => string.Equals(agent.EntryId, agentName, StringComparison.Ordinal))
             .ToList();
-        if (exactIdentifierMatches.Count == 1)
+        if (exactIdentifierMatches.Count > 0)
         {
-            return exactIdentifierMatches[0];
-        }
-
-        if (exactIdentifierMatches.Count > 1)
-        {
-            throw CreateAmbiguousAgentException(agentName, catalogReference, exactIdentifierMatches);
+            return exactIdentifierMatches;
         }
 
         var exactDisplayNameMatches = agents
             .Where(agent => string.Equals(agent.DisplayName, agentName, StringComparison.OrdinalIgnoreCase))
             .ToList();
-        if (exactDisplayNameMatches.Count == 1)
+        if (exactDisplayNameMatches.Count > 0)
         {
-            return exactDisplayNameMatches[0];
-        }
-
-        if (exactDisplayNameMatches.Count > 1)
-        {
-            throw CreateAmbiguousAgentException(agentName, catalogReference, exactDisplayNameMatches);
+            return exactDisplayNameMatches;
         }
 
         var exactTagMatches = agents
             .Where(agent => agent.Tags.Any(tag => string.Equals(tag, agentName, StringComparison.OrdinalIgnoreCase)))
             .ToList();
-        if (exactTagMatches.Count == 1)
+        if (exactTagMatches.Count > 0)
         {
-            return exactTagMatches[0];
+            return exactTagMatches;
         }
 
-        if (exactTagMatches.Count > 1)
-        {
-            throw CreateAmbiguousAgentException(agentName, catalogReference, exactTagMatches);
-        }
-
-        var substringMatches = agents
+        return agents
             .Where(agent =>
                 agent.EntryId.Contains(agentName, StringComparison.OrdinalIgnoreCase)
                 || agent.DisplayName.Contains(agentName, StringComparison.OrdinalIgnoreCase)
@@ -191,18 +190,6 @@ public sealed class CatalogInputResolver
                     && agent.Description.Contains(agentName, StringComparison.OrdinalIgnoreCase))
                 || agent.Tags.Any(tag => tag.Contains(agentName, StringComparison.OrdinalIgnoreCase)))
             .ToList();
-        if (substringMatches.Count == 1)
-        {
-            return substringMatches[0];
-        }
-
-        if (substringMatches.Count > 1)
-        {
-            throw CreateAmbiguousAgentException(agentName, catalogReference, substringMatches);
-        }
-
-        throw new InvalidOperationException(
-            $"No A2A agent matching '{agentName}' was found in catalog '{catalogReference}'. Available agents: {FormatCandidates(agents)}");
     }
 
     /// <summary>
@@ -223,7 +210,7 @@ public sealed class CatalogInputResolver
         string agentName,
         string catalogReference,
         IReadOnlyList<ResolvedCatalogAgent> matches) =>
-        new($"Multiple A2A agents matched '{agentName}' in catalog '{catalogReference}': {FormatCandidates(matches)}. Use @<agent>@{catalogReference} to pick one explicitly.");
+        new($"Multiple A2A agents matched '{agentName}' in catalog '{catalogReference}': {FormatCandidates(matches)}. Use <agent>@{catalogReference} to pick one explicitly.");
 
     private static string FormatCandidates(IReadOnlyList<ResolvedCatalogAgent> agents) =>
         string.Join(", ",

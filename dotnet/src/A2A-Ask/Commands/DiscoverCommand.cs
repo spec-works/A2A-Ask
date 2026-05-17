@@ -13,7 +13,7 @@ public static class DiscoverCommand
     {
         var targetArgument = new Argument<string>(
             name: "target",
-            description: "Agent target URL or @agent@catalog reference");
+            description: "Agent URL, catalog alias, or agent@catalog reference");
 
         var wellKnownOption = new Option<bool>(
             name: "--well-known",

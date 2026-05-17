@@ -10,6 +10,8 @@ namespace A2AAsk.Commands;
 /// </summary>
 public static class CommonOptions
 {
+    private static readonly TimeSpan CatalogSearchTimeout = TimeSpan.FromSeconds(10);
+
     public static Option<string?> AuthToken() => new(
         name: "--auth-token",
         description: "Bearer token for authentication");
@@ -87,21 +89,45 @@ public static class CommonOptions
     {
         var parsedTarget = TargetParser.Parse(target);
         var resolver = new CatalogInputResolver(catalogHttpClient);
+        var registry = new CatalogRegistry();
+
+        if (parsedTarget is UnqualifiedName unqualified)
+        {
+            if (registry.TryGetUrl(unqualified.Name, out var catalogUrl))
+            {
+                var agents = await resolver.ResolveAgentsAsync(catalogUrl, cancellationToken);
+                return agents.Count switch
+                {
+                    0 => throw new InvalidOperationException($"No A2A agents in catalog '{unqualified.Name}'."),
+                    1 => ResolvedTarget.FromCatalogAgent(agents[0]),
+                    _ => throw new InvalidOperationException(
+                        $"Multiple agents in catalog '{unqualified.Name}': {FormatCatalogCandidates(agents)}. Use <agent>@{unqualified.Name} to specify one.")
+                };
+            }
+
+            return await SearchAllCatalogsForAgent(unqualified.Name, registry, catalogHttpClient, cancellationToken);
+        }
 
         if (parsedTarget is CatalogTarget catalogTarget)
         {
             if (string.IsNullOrWhiteSpace(catalogTarget.CatalogAlias))
             {
-                throw new InvalidOperationException("Phase 1 requires a catalog host or URL. Use @agent@catalog or a catalog URL.");
+                throw new InvalidOperationException("Catalog-qualified targets must include a catalog. Use <agent>@<catalog>, a catalog alias, or a full URL.");
             }
 
-            var agent = await resolver.ResolveAgentAsync(catalogTarget.CatalogAlias!, catalogTarget.AgentName, cancellationToken);
+            var catalogReference = registry.TryGetUrl(catalogTarget.CatalogAlias, out var registeredUrl)
+                ? registeredUrl
+                : catalogTarget.CatalogAlias;
+            var agent = await resolver.ResolveAgentAsync(catalogReference!, catalogTarget.AgentName, cancellationToken);
             return ResolvedTarget.FromCatalogAgent(agent);
         }
 
         if (parsedTarget is CatalogBrowse catalogBrowse)
         {
-            var agents = await resolver.ResolveAgentsAsync(catalogBrowse.CatalogAlias, cancellationToken);
+            var catalogReference = registry.TryGetUrl(catalogBrowse.CatalogAlias, out var registeredUrl)
+                ? registeredUrl
+                : catalogBrowse.CatalogAlias;
+            var agents = await resolver.ResolveAgentsAsync(catalogReference, cancellationToken);
             return ResolvedTarget.FromCatalogAgent(SelectSingleCatalogAgent(agents, catalogBrowse.CatalogAlias));
         }
 
@@ -121,7 +147,7 @@ public static class CommonOptions
                 0 => new ResolvedTarget { RequestUrl = directUrl },
                 1 => ResolvedTarget.FromCatalogAgent(agents[0]),
                 _ => throw new InvalidOperationException(
-                    $"Multiple A2A agents were found in catalog '{directUrl}': {FormatCatalogCandidates(agents)}. Use @<agent>@{directUrl} or `a2a-ask catalog list {directUrl}`.")
+                    $"Multiple A2A agents were found in catalog '{directUrl}': {FormatCatalogCandidates(agents)}. Use <agent>@{directUrl} or `a2a-ask catalog list {directUrl}`.")
             };
         }
         catch (InvalidOperationException)
@@ -200,6 +226,80 @@ public static class CommonOptions
             : new A2AClient(requestUri, httpClient);
     }
 
+    private static async Task<ResolvedTarget> SearchAllCatalogsForAgent(
+        string agentName,
+        CatalogRegistry registry,
+        HttpClient catalogHttpClient,
+        CancellationToken cancellationToken)
+    {
+        var aliases = registry.LoadAliases();
+        if (aliases.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"No registered catalogs are available to search for '{agentName}'. Use `a2a-ask catalog add <alias> <url>` or provide a full URL.");
+        }
+
+        var resolver = new CatalogInputResolver(catalogHttpClient);
+        var lookups = await Task.WhenAll(
+            aliases.Select(alias => TryResolveCatalogAgentsAsync(alias.Key, alias.Value, resolver, cancellationToken)));
+
+        var catalogAgents = lookups
+            .Where(lookup => lookup.Agents != null)
+            .SelectMany(lookup => lookup.Agents!.Select(agent => new QualifiedCatalogMatch(lookup.Alias, agent)))
+            .ToList();
+        var matches = FindMatchingCatalogAgents(catalogAgents, agentName);
+
+        if (matches.Count == 1)
+        {
+            return ResolvedTarget.FromCatalogAgent(matches[0].Agent);
+        }
+
+        if (matches.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Multiple registered catalogs matched '{agentName}': {FormatQualifiedCatalogCandidates(matches)}. Use one of the qualified references shown above.");
+        }
+
+        var unreachableCatalogs = lookups
+            .Where(lookup => lookup.Error != null)
+            .Select(lookup => lookup.Alias)
+            .OrderBy(alias => alias, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (unreachableCatalogs.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"No A2A agent matching '{agentName}' was found in registered catalogs. Unreachable catalogs: {string.Join(", ", unreachableCatalogs)}.");
+        }
+
+        throw new InvalidOperationException(
+            $"No A2A agent matching '{agentName}' was found in registered catalogs. Use `a2a-ask catalog add <alias> <url>` or provide a full URL.");
+    }
+
+    private static async Task<CatalogLookupResult> TryResolveCatalogAgentsAsync(
+        string alias,
+        string catalogUrl,
+        CatalogInputResolver resolver,
+        CancellationToken cancellationToken)
+    {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(CatalogSearchTimeout);
+
+        try
+        {
+            var agents = await resolver.ResolveAgentsAsync(catalogUrl, timeoutCts.Token);
+            return new CatalogLookupResult(alias, agents, null);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new CatalogLookupResult(alias, null, new TimeoutException($"Timed out loading catalog '{alias}'."));
+        }
+        catch (Exception ex)
+        {
+            return new CatalogLookupResult(alias, null, ex);
+        }
+    }
+
     private static ResolvedCatalogAgent SelectSingleCatalogAgent(
         IReadOnlyList<ResolvedCatalogAgent> agents,
         string catalogReference) => agents.Count switch
@@ -207,11 +307,58 @@ public static class CommonOptions
         0 => throw new InvalidOperationException($"No A2A agents were found in catalog '{catalogReference}'."),
         1 => agents[0],
         _ => throw new InvalidOperationException(
-            $"Multiple A2A agents were found in catalog '{catalogReference}': {FormatCatalogCandidates(agents)}. Use @<agent>@{catalogReference} or `a2a-ask catalog list {catalogReference}`.")
+            $"Multiple A2A agents were found in catalog '{catalogReference}': {FormatCatalogCandidates(agents)}. Use <agent>@{catalogReference} or `a2a-ask catalog list {catalogReference}`.")
     };
 
     private static string FormatCatalogCandidates(IReadOnlyList<ResolvedCatalogAgent> agents) =>
         string.Join(", ", agents.Select(agent => $"{agent.EntryId} ({agent.DisplayName})"));
+
+    private static IReadOnlyList<QualifiedCatalogMatch> FindMatchingCatalogAgents(
+        IReadOnlyList<QualifiedCatalogMatch> agents,
+        string agentName)
+    {
+        var exactIdentifierMatches = agents
+            .Where(agent => string.Equals(agent.Agent.EntryId, agentName, StringComparison.Ordinal))
+            .ToList();
+        if (exactIdentifierMatches.Count > 0)
+        {
+            return exactIdentifierMatches;
+        }
+
+        var exactDisplayNameMatches = agents
+            .Where(agent => string.Equals(agent.Agent.DisplayName, agentName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (exactDisplayNameMatches.Count > 0)
+        {
+            return exactDisplayNameMatches;
+        }
+
+        var exactTagMatches = agents
+            .Where(agent => agent.Agent.Tags.Any(tag => string.Equals(tag, agentName, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        if (exactTagMatches.Count > 0)
+        {
+            return exactTagMatches;
+        }
+
+        return agents
+            .Where(agent =>
+                agent.Agent.EntryId.Contains(agentName, StringComparison.OrdinalIgnoreCase)
+                || agent.Agent.DisplayName.Contains(agentName, StringComparison.OrdinalIgnoreCase)
+                || (!string.IsNullOrWhiteSpace(agent.Agent.Description)
+                    && agent.Agent.Description.Contains(agentName, StringComparison.OrdinalIgnoreCase))
+                || agent.Agent.Tags.Any(tag => tag.Contains(agentName, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+    }
+
+    private static string FormatQualifiedCatalogCandidates(IReadOnlyList<QualifiedCatalogMatch> matches) =>
+        string.Join(", ", matches.Select(match => $"{EncodeTargetComponent(match.Agent.EntryId)}@{EncodeTargetComponent(match.Alias)} ({match.Agent.DisplayName})"));
+
+    private static string EncodeTargetComponent(string value) => value.Replace(' ', '+');
+
+    private sealed record CatalogLookupResult(string Alias, IReadOnlyList<ResolvedCatalogAgent>? Agents, Exception? Error);
+
+    private sealed record QualifiedCatalogMatch(string Alias, ResolvedCatalogAgent Agent);
 
     internal sealed record ResolvedTarget
     {

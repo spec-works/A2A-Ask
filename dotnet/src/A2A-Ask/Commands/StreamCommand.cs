@@ -11,9 +11,9 @@ public static class StreamCommand
 {
     public static Command Create()
     {
-        var urlArgument = new Argument<string>(
-            name: "url",
-            description: "Agent endpoint URL");
+        var targetArgument = new Argument<string>(
+            name: "target",
+            description: "Agent URL, catalog alias, or agent@catalog reference");
 
         var messageOption = new Option<string?>(
             aliases: ["--message", "-m"],
@@ -50,7 +50,7 @@ public static class StreamCommand
 
         var command = new Command("stream", "Send a message with streaming response, or subscribe to task events")
         {
-            urlArgument,
+            targetArgument,
             messageOption,
             fileOption,
             dataOption,
@@ -92,7 +92,7 @@ public static class StreamCommand
 
         command.SetHandler(async (InvocationContext context) =>
         {
-            var url = context.ParseResult.GetValueForArgument(urlArgument);
+            var target = context.ParseResult.GetValueForArgument(targetArgument);
             var message = context.ParseResult.GetValueForOption(messageOption);
             var file = context.ParseResult.GetValueForOption(fileOption);
             var data = context.ParseResult.GetValueForOption(dataOption);
@@ -124,8 +124,9 @@ public static class StreamCommand
 
             try
             {
+                var resolvedTarget = await CommonOptions.ResolveTargetAsync(target, context.GetCancellationToken());
                 var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
-                    url,
+                    resolvedTarget.RequestUrl,
                     authToken: authToken,
                     authHeader: authHeader,
                     apiKey: apiKey,
@@ -139,7 +140,7 @@ public static class StreamCommand
                 var ct = context.GetCancellationToken();
 
                 var client = await CommonOptions.CreateClientAsync(
-                    url,
+                    resolvedTarget,
                     httpClient,
                     a2aVersion,
                     ct);
