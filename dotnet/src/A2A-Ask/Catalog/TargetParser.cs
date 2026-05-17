@@ -73,26 +73,6 @@ public sealed record UnqualifiedName : TargetParseResult
 }
 
 /// <summary>
-/// Represents a request to browse a catalog.
-/// </summary>
-public sealed record CatalogBrowse : TargetParseResult
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CatalogBrowse"/> record.
-    /// </summary>
-    /// <param name="catalogAlias">The catalog alias or host hint.</param>
-    public CatalogBrowse(string catalogAlias)
-    {
-        CatalogAlias = catalogAlias;
-    }
-
-    /// <summary>
-    /// Gets the catalog alias or host hint.
-    /// </summary>
-    public string CatalogAlias { get; init; }
-}
-
-/// <summary>
 /// Parses CLI target values into direct URL or catalog-addressed forms.
 /// </summary>
 public static class TargetParser
@@ -110,43 +90,29 @@ public static class TargetParser
         }
 
         var trimmed = target.Trim();
+
+        // URLs containing a scheme are always direct
         if (trimmed.Contains("://", StringComparison.Ordinal))
         {
             return new DirectUrl(trimmed);
         }
 
-        if (trimmed.StartsWith("@@", StringComparison.Ordinal))
+        // agent@catalog — qualified catalog reference
+        var atIndex = trimmed.IndexOf('@');
+        if (atIndex >= 0)
         {
-            return new UnqualifiedName(DecodeNameComponent(trimmed[2..], "Catalog browse targets must include a catalog alias or host.", nameof(target)));
-        }
-
-        if (trimmed.StartsWith('@'))
-        {
-            var separatorIndex = trimmed.IndexOf('@', 1);
-            if (separatorIndex >= 0)
-            {
-                var agentName = DecodeNameComponent(trimmed[1..separatorIndex], "Catalog agent targets must include an agent name.", nameof(target));
-                var catalogName = DecodeNameComponent(trimmed[(separatorIndex + 1)..], "Catalog agent targets must include a catalog reference.", nameof(target));
-                return new CatalogTarget(agentName, catalogName);
-            }
-
-            var bareAgentName = DecodeNameComponent(trimmed[1..], "Catalog agent targets must include an agent name.", nameof(target));
-            return new CatalogTarget(bareAgentName, null);
-        }
-
-        var unqualifiedSeparatorIndex = trimmed.IndexOf('@');
-        if (unqualifiedSeparatorIndex >= 0)
-        {
-            var agentName = DecodeNameComponent(trimmed[..unqualifiedSeparatorIndex], "Catalog agent targets must include an agent name.", nameof(target));
-            var catalogName = DecodeNameComponent(trimmed[(unqualifiedSeparatorIndex + 1)..], "Catalog agent targets must include a catalog reference.", nameof(target));
+            var agentName = DecodeNameComponent(trimmed[..atIndex], "Agent name must not be empty in agent@catalog reference.", nameof(target));
+            var catalogName = DecodeNameComponent(trimmed[(atIndex + 1)..], "Catalog name must not be empty in agent@catalog reference.", nameof(target));
             return new CatalogTarget(agentName, catalogName);
         }
 
+        // Bare names containing . : / look like hosts or paths — treat as direct URLs
         if (trimmed.Contains('.') || trimmed.Contains(':') || trimmed.Contains('/'))
         {
             return new DirectUrl(trimmed);
         }
 
+        // Simple bare name — catalog-first resolution
         return new UnqualifiedName(DecodeNameComponent(trimmed, "Target must not be empty.", nameof(target)));
     }
 

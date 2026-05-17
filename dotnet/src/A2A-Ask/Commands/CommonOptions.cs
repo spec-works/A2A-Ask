@@ -110,25 +110,11 @@ public static class CommonOptions
 
         if (parsedTarget is CatalogTarget catalogTarget)
         {
-            if (string.IsNullOrWhiteSpace(catalogTarget.CatalogAlias))
-            {
-                throw new InvalidOperationException("Catalog-qualified targets must include a catalog. Use <agent>@<catalog>, a catalog alias, or a full URL.");
-            }
-
-            var catalogReference = registry.TryGetUrl(catalogTarget.CatalogAlias, out var registeredUrl)
+            var catalogReference = registry.TryGetUrl(catalogTarget.CatalogAlias!, out var registeredUrl)
                 ? registeredUrl
                 : catalogTarget.CatalogAlias;
             var agent = await resolver.ResolveAgentAsync(catalogReference!, catalogTarget.AgentName, cancellationToken);
             return ResolvedTarget.FromCatalogAgent(agent);
-        }
-
-        if (parsedTarget is CatalogBrowse catalogBrowse)
-        {
-            var catalogReference = registry.TryGetUrl(catalogBrowse.CatalogAlias, out var registeredUrl)
-                ? registeredUrl
-                : catalogBrowse.CatalogAlias;
-            var agents = await resolver.ResolveAgentsAsync(catalogReference, cancellationToken);
-            return ResolvedTarget.FromCatalogAgent(SelectSingleCatalogAgent(agents, catalogBrowse.CatalogAlias));
         }
 
         var directUrl = ((DirectUrl)parsedTarget).Url;

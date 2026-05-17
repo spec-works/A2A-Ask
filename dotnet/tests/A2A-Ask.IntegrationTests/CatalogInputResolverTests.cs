@@ -61,7 +61,7 @@ public class CatalogInputResolverTests
     {
         var authority = new Uri(_fixture.BaseAddress).Authority;
 
-        var resolved = await CommonOptions.ResolveTargetAsync($"@open@{authority}", _fixture.Client);
+        var resolved = await CommonOptions.ResolveTargetAsync($"open@{authority}", _fixture.Client);
 
         Assert.Equal($"{_fixture.BaseAddress}/open", resolved.RequestUrl);
     }

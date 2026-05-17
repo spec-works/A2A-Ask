@@ -108,12 +108,8 @@ public static class CatalogCommand
                 var parseResult = TargetParser.Parse(target);
                 var agent = parseResult switch
                 {
-                    CatalogTarget catalogTarget when !string.IsNullOrWhiteSpace(catalogTarget.CatalogAlias)
-                        => await resolver.ResolveAgentAsync(ResolveRegisteredCatalogReference(catalogTarget.CatalogAlias!, registry), catalogTarget.AgentName, context.GetCancellationToken()),
                     CatalogTarget catalogTarget
-                        => await SearchRegisteredCatalogsForAgentAsync(catalogTarget.AgentName, registry, resolver, context.GetCancellationToken()),
-                    CatalogBrowse browse
-                        => await ResolveSingleAgentAsync(resolver, ResolveRegisteredCatalogReference(browse.CatalogAlias, registry), browse.CatalogAlias, context.GetCancellationToken()),
+                        => await resolver.ResolveAgentAsync(ResolveRegisteredCatalogReference(catalogTarget.CatalogAlias!, registry), catalogTarget.AgentName, context.GetCancellationToken()),
                     UnqualifiedName unqualified when registry.TryGetUrl(unqualified.Name, out var catalogUrl)
                         => await ResolveSingleAgentAsync(resolver, catalogUrl, unqualified.Name, context.GetCancellationToken()),
                     UnqualifiedName unqualified
@@ -384,12 +380,10 @@ public static class CatalogCommand
 
     private static string ResolveCatalogReference(string target, CatalogRegistry registry) => TargetParser.Parse(target) switch
     {
-        CatalogBrowse browse => ResolveRegisteredCatalogReference(browse.CatalogAlias, registry),
         DirectUrl directUrl => directUrl.Url,
-        CatalogTarget catalogTarget when !string.IsNullOrWhiteSpace(catalogTarget.CatalogAlias) => ResolveRegisteredCatalogReference(catalogTarget.CatalogAlias!, registry),
+        CatalogTarget catalogTarget => ResolveRegisteredCatalogReference(catalogTarget.CatalogAlias!, registry),
         UnqualifiedName unqualified when registry.TryGetUrl(unqualified.Name, out var registeredUrl) => registeredUrl,
         UnqualifiedName => target.Trim(),
-        CatalogTarget => throw new InvalidOperationException("Catalog-qualified targets must include a catalog. Use <agent>@<catalog> or a catalog URL."),
         _ => throw new InvalidOperationException("Unsupported catalog target.")
     };
 

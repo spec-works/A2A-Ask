@@ -5,7 +5,7 @@ namespace A2AAsk.Tests;
 public class TargetParserTests
 {
     [Fact]
-    public void Parse_NewQualifiedReference_ReturnsCatalogTarget()
+    public void Parse_QualifiedReference_ReturnsCatalogTarget()
     {
         var result = TargetParser.Parse("agent@catalog");
 
@@ -15,7 +15,7 @@ public class TargetParserTests
     }
 
     [Fact]
-    public void Parse_NewQualifiedReference_DecodesSpaces()
+    public void Parse_QualifiedReference_DecodesSpaces()
     {
         var result = TargetParser.Parse("my+cool+agent@my+catalog");
 
@@ -25,7 +25,7 @@ public class TargetParserTests
     }
 
     [Fact]
-    public void Parse_BareCatalogName_ReturnsUnqualifiedName()
+    public void Parse_BareName_ReturnsUnqualifiedName()
     {
         var result = TargetParser.Parse("mycatalog");
 
@@ -34,7 +34,7 @@ public class TargetParserTests
     }
 
     [Fact]
-    public void Parse_BareCatalogName_DecodesSpaces()
+    public void Parse_BareName_DecodesSpaces()
     {
         var result = TargetParser.Parse("my+catalog");
 
@@ -79,59 +79,15 @@ public class TargetParserTests
     }
 
     [Fact]
-    public void Parse_BackCompatBrowse_ReturnsUnqualifiedName()
-    {
-        var result = TargetParser.Parse("@@catalog");
-
-        var unqualified = Assert.IsType<UnqualifiedName>(result);
-        Assert.Equal("catalog", unqualified.Name);
-    }
-
-    [Fact]
-    public void Parse_BackCompatBrowse_DecodesSpaces()
-    {
-        var result = TargetParser.Parse("@@my+catalog");
-
-        var unqualified = Assert.IsType<UnqualifiedName>(result);
-        Assert.Equal("my catalog", unqualified.Name);
-    }
-
-    [Fact]
-    public void Parse_BackCompatQualifiedReference_ReturnsCatalogTarget()
-    {
-        var result = TargetParser.Parse("@agent@catalog");
-
-        var catalogTarget = Assert.IsType<CatalogTarget>(result);
-        Assert.Equal("agent", catalogTarget.AgentName);
-        Assert.Equal("catalog", catalogTarget.CatalogAlias);
-    }
-
-    [Fact]
-    public void Parse_BackCompatAgentOnly_ReturnsCatalogTargetWithoutAlias()
-    {
-        var result = TargetParser.Parse("@agent");
-
-        var catalogTarget = Assert.IsType<CatalogTarget>(result);
-        Assert.Equal("agent", catalogTarget.AgentName);
-        Assert.Null(catalogTarget.CatalogAlias);
-    }
-
-    [Fact]
     public void Parse_AgentWithEmptyCatalog_Throws()
     {
         Assert.Throws<ArgumentException>(() => TargetParser.Parse("agent@"));
     }
 
     [Fact]
-    public void Parse_AtOnly_Throws()
+    public void Parse_EmptyAgentWithCatalog_Throws()
     {
-        Assert.Throws<ArgumentException>(() => TargetParser.Parse("@"));
-    }
-
-    [Fact]
-    public void Parse_BackCompatBrowseWithoutCatalog_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => TargetParser.Parse("@@"));
+        Assert.Throws<ArgumentException>(() => TargetParser.Parse("@catalog"));
     }
 
     [Fact]
