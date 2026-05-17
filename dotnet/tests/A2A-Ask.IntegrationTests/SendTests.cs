@@ -32,7 +32,7 @@ public class SendTests
             MessageId = Guid.NewGuid().ToString("N"),
             Parts = [Part.FromText(text)],
         },
-        Configuration = new SendMessageConfiguration { Blocking = true },
+        Configuration = new SendMessageConfiguration { ReturnImmediately = false },
     };
 
     private static string? GetResponseText(SendMessageResponse response)

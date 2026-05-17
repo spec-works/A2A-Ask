@@ -88,7 +88,7 @@ public class TokenStoreTests
                     MessageId = Guid.NewGuid().ToString("N"),
                     Parts = [Part.FromText("hello from token store")],
                 },
-                Configuration = new SendMessageConfiguration { Blocking = true },
+                Configuration = new SendMessageConfiguration { ReturnImmediately = false },
             };
 
             var response = await a2aClient.SendMessageAsync(request);

@@ -10,7 +10,7 @@ license: MIT
 compatibility: Requires .NET 10.0 or later SDK. Works on Windows, macOS, and Linux.
 metadata:
   author: spec-works
-  version: "1.2"
+  version: "1.3"
   repository: https://github.com/spec-works/A2A-Ask
 ---
 

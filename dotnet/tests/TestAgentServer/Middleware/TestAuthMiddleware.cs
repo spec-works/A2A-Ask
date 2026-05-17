@@ -17,7 +17,7 @@ public class TestAuthMiddleware
         var path = context.Request.Path.Value ?? "";
 
         // Agent card discovery is always public (no auth required)
-        if (path.Contains("/.well-known/agent-card.json"))
+        if (path.Contains("/.well-known/agent-card.json") || path.Contains("/.well-known/ai-catalog.json"))
         {
             await _next(context);
             return;

@@ -30,7 +30,7 @@ public class MultiTurnTests
             TaskId = taskId,
             Parts = [Part.FromText(text)],
         },
-        Configuration = new SendMessageConfiguration { Blocking = true },
+        Configuration = new SendMessageConfiguration { ReturnImmediately = false },
     };
 
     [Fact]

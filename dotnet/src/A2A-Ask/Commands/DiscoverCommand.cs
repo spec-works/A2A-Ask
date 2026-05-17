@@ -11,9 +11,9 @@ public static class DiscoverCommand
 {
     public static Command Create()
     {
-        var urlArgument = new Argument<string>(
-            name: "url",
-            description: "Base URL of the agent (or direct agent card URL)");
+        var targetArgument = new Argument<string>(
+            name: "target",
+            description: "Agent target URL or @agent@catalog reference");
 
         var wellKnownOption = new Option<bool>(
             name: "--well-known",
@@ -31,7 +31,7 @@ public static class DiscoverCommand
 
         var command = new Command("discover", "Fetch and display an A2A agent card")
         {
-            urlArgument,
+            targetArgument,
             wellKnownOption,
             extendedOption,
             authTokenOption,
@@ -41,7 +41,7 @@ public static class DiscoverCommand
 
         command.SetHandler(async (InvocationContext context) =>
         {
-            var url = context.ParseResult.GetValueForArgument(urlArgument);
+            var target = context.ParseResult.GetValueForArgument(targetArgument);
             var wellKnown = context.ParseResult.GetValueForOption(wellKnownOption);
             var extended = context.ParseResult.GetValueForOption(extendedOption);
             var authToken = context.ParseResult.GetValueForOption(authTokenOption);
@@ -59,13 +59,16 @@ public static class DiscoverCommand
 
             try
             {
+                var resolvedTarget = await CommonOptions.ResolveTargetAsync(target, context.GetCancellationToken());
                 var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
-                    url,
+                    resolvedTarget.RequestUrl,
                     authToken: authToken,
                     authHeader: authHeader,
                     tenant: tenant);
 
-                var useWellKnown = wellKnown && !url.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+                var useWellKnown = string.IsNullOrWhiteSpace(resolvedTarget.AgentCardUrl)
+                    && wellKnown
+                    && !resolvedTarget.RequestUrl.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
 
                 // Try SDK-based agent card resolution first
                 try
@@ -74,7 +77,7 @@ public static class DiscoverCommand
                     {
                         // For extended card, use A2A client's GetExtendedAgentCardAsync
                         var client = await CommonOptions.CreateClientAsync(
-                            url, httpClient, context.GetCancellationToken());
+                            resolvedTarget, httpClient, context.GetCancellationToken());
                         var extCard = await client.GetExtendedAgentCardAsync(
                             new GetExtendedAgentCardRequest { Tenant = tenant },
                             context.GetCancellationToken());
@@ -84,14 +87,20 @@ public static class DiscoverCommand
                     }
 
                     A2ACardResolver resolver;
-                    if (useWellKnown)
+                    if (!string.IsNullOrWhiteSpace(resolvedTarget.AgentCardUrl))
                     {
-                        var baseUri = new Uri(url.TrimEnd('/'));
+                        var fullUri = new Uri(resolvedTarget.AgentCardUrl);
+                        var baseUri = new Uri($"{fullUri.Scheme}://{fullUri.Authority}");
+                        resolver = new A2ACardResolver(baseUri, httpClient, fullUri.PathAndQuery);
+                    }
+                    else if (useWellKnown)
+                    {
+                        var baseUri = new Uri(resolvedTarget.RequestUrl.TrimEnd('/'));
                         resolver = new A2ACardResolver(baseUri, httpClient, "/.well-known/agent-card.json");
                     }
                     else
                     {
-                        var fullUri = new Uri(url);
+                        var fullUri = new Uri(resolvedTarget.RequestUrl);
                         var baseUri = new Uri($"{fullUri.Scheme}://{fullUri.Authority}");
                         resolver = new A2ACardResolver(baseUri, httpClient, fullUri.PathAndQuery);
                     }
@@ -108,9 +117,11 @@ public static class DiscoverCommand
                     // Fall through to raw JSON fallback
                 }
 
-                var cardUrl = useWellKnown
-                    ? $"{url.TrimEnd('/')}/.well-known/agent-card.json"
-                    : url;
+                var cardUrl = !string.IsNullOrWhiteSpace(resolvedTarget.AgentCardUrl)
+                    ? resolvedTarget.AgentCardUrl
+                    : useWellKnown
+                        ? $"{resolvedTarget.RequestUrl.TrimEnd('/')}/.well-known/agent-card.json"
+                        : resolvedTarget.RequestUrl;
 
                 var response = await httpClient.GetAsync(cardUrl);
                 response.EnsureSuccessStatusCode();

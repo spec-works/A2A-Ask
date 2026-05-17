@@ -1,4 +1,5 @@
 using A2A;
+using A2AAsk.Catalog;
 using A2AAsk.Output;
 
 namespace A2AAsk.Tests;
@@ -130,6 +131,47 @@ public class ConsoleFormatterTests
         var output = CaptureConsoleOutput(() => formatter.WriteListTasksNotSupported());
 
         Assert.Contains("not available", output);
+    }
+
+    [Fact]
+    public void WriteCatalogAgents_TextMode_ShowsEntries()
+    {
+        var formatter = new ConsoleFormatter("text", pretty: false);
+        var agents = new[]
+        {
+            new ResolvedCatalogAgent
+            {
+                CatalogUrl = "https://catalog.example/.well-known/ai-catalog.json",
+                EntryId = "open",
+                DisplayName = "OpenAgent",
+                Description = "Open echo agent",
+                AgentCardUrl = "https://catalog.example/open/.well-known/agent-card.json",
+                Tags = new[] { "echo" }
+            }
+        };
+
+        var output = CaptureConsoleOutput(() => formatter.WriteCatalogAgents(agents));
+
+        Assert.Contains("open: OpenAgent", output);
+        Assert.Contains("Agent card", output);
+    }
+
+    [Fact]
+    public void WriteCatalogAgent_JsonMode_SerializesAgent()
+    {
+        var formatter = new ConsoleFormatter("json", pretty: false);
+        var agent = new ResolvedCatalogAgent
+        {
+            CatalogUrl = "https://catalog.example/.well-known/ai-catalog.json",
+            EntryId = "open",
+            DisplayName = "OpenAgent",
+            AgentCardUrl = "https://catalog.example/open/.well-known/agent-card.json"
+        };
+
+        var output = CaptureConsoleOutput(() => formatter.WriteCatalogAgent(agent));
+
+        Assert.Contains("catalogUrl", output);
+        Assert.Contains("agentCardUrl", output);
     }
 
     private static string CaptureConsoleOutput(Action action)

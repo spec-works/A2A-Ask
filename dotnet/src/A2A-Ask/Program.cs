@@ -1,9 +1,5 @@
 using System.CommandLine;
-using A2A.V0_3Compat;
 using A2AAsk.Commands;
-
-// Register v0.3 compatibility fallback so A2AClientFactory handles older agents
-V03FallbackRegistration.Register();
 
 var rootCommand = new RootCommand("A2A-Ask: Interact with A2A (Agent-to-Agent) protocol agents from the command line")
 {
@@ -33,6 +29,7 @@ rootCommand.AddGlobalOption(verboseOption);
 
 // Register commands
 rootCommand.AddCommand(DiscoverCommand.Create());
+rootCommand.AddCommand(CatalogCommand.Create());
 rootCommand.AddCommand(SendCommand.Create());
 rootCommand.AddCommand(StreamCommand.Create());
 rootCommand.AddCommand(TaskCommand.Create());

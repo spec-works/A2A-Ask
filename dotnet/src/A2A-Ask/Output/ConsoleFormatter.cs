@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using A2A;
+using A2AAsk.Catalog;
 
 namespace A2AAsk.Output;
 
@@ -56,6 +57,22 @@ public class ConsoleFormatter
             Console.WriteLine("The 'task list' feature is not available in this version of the A2A SDK.");
         else
             WriteJson(new { error = "task list not supported in current A2A SDK" });
+    }
+
+    public void WriteCatalogAgents(IReadOnlyList<ResolvedCatalogAgent> agents)
+    {
+        if (_mode == "text")
+            WriteCatalogAgentsText(agents);
+        else
+            WriteJson(agents);
+    }
+
+    public void WriteCatalogAgent(ResolvedCatalogAgent agent)
+    {
+        if (_mode == "text")
+            WriteCatalogAgentText(agent);
+        else
+            WriteJson(agent);
     }
 
     public void WriteStreamEvent(StreamResponse evt)
@@ -194,6 +211,37 @@ public class ConsoleFormatter
         {
             WriteTaskText(response.Task!, verbose);
         }
+    }
+
+    private static void WriteCatalogAgentsText(IReadOnlyList<ResolvedCatalogAgent> agents)
+    {
+        if (agents.Count == 0)
+        {
+            Console.WriteLine("No A2A agents found.");
+            return;
+        }
+
+        foreach (var agent in agents)
+        {
+            Console.WriteLine($"- {agent.EntryId}: {agent.DisplayName}");
+            if (!string.IsNullOrWhiteSpace(agent.Description))
+                Console.WriteLine($"  {agent.Description}");
+            Console.WriteLine($"  Agent card: {agent.AgentCardUrl}");
+            if (agent.Tags.Count > 0)
+                Console.WriteLine($"  Tags: {string.Join(", ", agent.Tags)}");
+        }
+    }
+
+    private static void WriteCatalogAgentText(ResolvedCatalogAgent agent)
+    {
+        Console.WriteLine($"Agent: {agent.DisplayName}");
+        Console.WriteLine($"Identifier: {agent.EntryId}");
+        Console.WriteLine($"Catalog: {agent.CatalogUrl}");
+        Console.WriteLine($"Agent card: {agent.AgentCardUrl}");
+        if (!string.IsNullOrWhiteSpace(agent.Description))
+            Console.WriteLine($"Description: {agent.Description}");
+        if (agent.Tags.Count > 0)
+            Console.WriteLine($"Tags: {string.Join(", ", agent.Tags)}");
     }
 
     private void WriteTaskText(AgentTask task, bool verbose)

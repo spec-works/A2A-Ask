@@ -9,14 +9,14 @@ namespace A2AAsk.IntegrationTests;
 /// </summary>
 public class TestServerFixture : IAsyncLifetime
 {
-    private WebApplicationFactory<Program>? _factory;
+    private WebApplicationFactory<global::TestAgentServer.Program>? _factory;
 
     public HttpClient Client { get; private set; } = null!;
     public string BaseAddress => Client.BaseAddress!.ToString().TrimEnd('/');
 
     public Task InitializeAsync()
     {
-        _factory = new WebApplicationFactory<Program>();
+        _factory = new WebApplicationFactory<global::TestAgentServer.Program>();
         Client = _factory.CreateClient();
         return Task.CompletedTask;
     }
