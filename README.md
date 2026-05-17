@@ -27,12 +27,35 @@ a2a-ask stream https://agent.example.com --message "Generate a report" --output 
 | Command | Description |
 |---------|-------------|
 | `a2a-ask discover <url>` | Fetch and display an agent card |
+| `a2a-ask catalog list <target>` | List A2A agents available in a catalog |
+| `a2a-ask catalog show <target>` | Resolve one A2A agent from a catalog |
 | `a2a-ask send <url>` | Send a message to an agent |
 | `a2a-ask stream <url>` | Stream a response or subscribe to task events |
 | `a2a-ask task get <url>` | Get current task status (for polling) |
 | `a2a-ask task cancel <url>` | Cancel a running task |
 | `a2a-ask auth login <url>` | Interactive OAuth2 authentication |
+| `a2a-ask auth register-client --client-id <id> --issuer <url>` | Persist an OAuth2 client registration |
+| `a2a-ask auth list-clients` | List persisted OAuth2 client registrations |
+| `a2a-ask auth remove-client --issuer <url>` | Remove a persisted OAuth2 client registration |
 | `a2a-ask version` | Display version info |
+
+## Catalog Integration
+
+A2A-Ask can browse AI catalogs and resolve A2A agents from catalog targets.
+
+| Target form | Meaning |
+|-------------|---------|
+| `@agentName` | Bare catalog target. Phase 1 still requires an explicit catalog host or URL, so prefer `@agentName@catalogAlias`. |
+| `@agentName@catalogAlias` | Resolve one agent from a specific catalog host, origin, or catalog URL. |
+| `@@catalogAlias` | Browse a catalog by host, origin, or catalog URL. |
+
+```bash
+a2a-ask catalog list @@catalog.example.com
+a2a-ask catalog show @weather@catalog.example.com
+a2a-ask send @weather@catalog.example.com --message "Hello"
+```
+
+Use `catalog list` to browse catalog entries and `catalog show` to resolve one agent before sending. Plain URLs are sent directly for `send`, `stream`, and `task` commands without fetching an agent card first; use `discover` when you want card metadata. For older direct endpoints, add `--a2a-version 0.3`.
 
 ## Authentication
 
@@ -47,6 +70,9 @@ a2a-ask send <url> --api-key "sk-123" --api-key-header "X-API-Key" --message "He
 
 # Interactive OAuth2 (device code flow)
 a2a-ask auth login <url>
+
+# Persist a client registration for automatic issuer matching
+a2a-ask auth register-client --client-id "my-cli-app" --issuer "https://login.microsoftonline.com/common/v2.0" --resource "https://graph.microsoft.com"
 
 # Custom header
 a2a-ask send <url> --auth-header "X-Custom=value" --message "Hello"

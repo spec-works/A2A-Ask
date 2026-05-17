@@ -172,6 +172,8 @@ public class TokenResult
     public DateTime? ExpiresAt { get; set; }
     public string? TokenType { get; set; }
     public string? TokenUrl { get; set; }
+    public string? ClientId { get; set; }
+    public string? Resource { get; set; }
 
     public bool IsExpired => ExpiresAt.HasValue && DateTime.UtcNow >= ExpiresAt.Value;
 }

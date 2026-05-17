@@ -17,6 +17,8 @@ public static class AuthCodeFlow
     public static async Task<TokenResult?> AuthenticateAsync(
         OAuth2SecurityScheme scheme,
         IEnumerable<string>? requiredScopes = null,
+        string? clientId = null,
+        string? resource = null,
         CancellationToken cancellationToken = default)
     {
         var authCodeFlow = scheme.Flows?.AuthorizationCode;
@@ -29,10 +31,12 @@ public static class AuthCodeFlow
         if (requiredScopes != null)
             foreach (var s in requiredScopes) allScopes.Add(s);
 
+        clientId ??= "a2a-ask-cli";
+
         var options = new OidcClientOptions
         {
             Authority = new Uri(authCodeFlow.AuthorizationUrl).GetLeftPart(UriPartial.Authority),
-            ClientId = "a2a-ask-cli",
+            ClientId = clientId,
             Scope = string.Join(" ", allScopes),
             RedirectUri = "http://127.0.0.1:29080/callback",
             Browser = new SystemBrowser(29080),
@@ -64,7 +68,9 @@ public static class AuthCodeFlow
                 ? result.AccessTokenExpiration.UtcDateTime
                 : null,
             TokenType = "Bearer",
-            TokenUrl = authCodeFlow.TokenUrl
+            TokenUrl = authCodeFlow.TokenUrl,
+            ClientId = clientId,
+            Resource = resource
         };
     }
 }

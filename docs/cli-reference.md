@@ -22,19 +22,19 @@ These options are available on all commands:
 
 ## Commands
 
-### `a2a-ask discover <url>`
+### `a2a-ask discover <target>`
 
 Fetch and display an A2A agent card.
 
 ```bash
-a2a-ask discover <url> [options]
+a2a-ask discover <target> [options]
 ```
 
 **Arguments:**
 
 | Argument | Description |
 |----------|-------------|
-| `<url>` | Base URL of the agent (or direct agent card URL) |
+| `<target>` | Agent URL or `@agent@catalog` reference |
 
 **Options:**
 
@@ -54,6 +54,60 @@ a2a-ask discover https://example.com/agents/my-agent --output text
 # Fetch extended card with authentication
 a2a-ask discover https://example.com/agents/my-agent --extended --auth-token "my-token"
 ```
+
+---
+
+### `a2a-ask catalog list <target>`
+
+List A2A agents available in a catalog.
+
+```bash
+a2a-ask catalog list <target> [options]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `<target>` | Catalog URL, host/origin shorthand, or `@@catalog` reference |
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--filter <text>` | Filter by entry id, display name, description, or tags | — |
+
+**Examples:**
+
+```bash
+a2a-ask catalog list https://example.com/.well-known/ai-catalog.json
+a2a-ask catalog list @@catalog.example.com --filter weather
+```
+
+---
+
+### `a2a-ask catalog show <target>`
+
+Show one resolved A2A agent from a catalog.
+
+```bash
+a2a-ask catalog show <target>
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `<target>` | Catalog URL, host/origin shorthand, `@@catalog`, or `@agent@catalog` target |
+
+**Examples:**
+
+```bash
+a2a-ask catalog show @weather@catalog.example.com
+a2a-ask catalog show https://example.com/.well-known/ai-catalog.json
+```
+
+If the catalog contains multiple A2A agents, use `@agent@catalog` to choose one explicitly. Bare `@agent` targets are parsed, but Phase 1 still requires an explicit catalog host or URL.
 
 ---
 
@@ -94,6 +148,8 @@ a2a-ask send <url> [options]
 | `--tenant` | | Tenant ID | — |
 
 At least one of `--message`, `--file`, or `--data` is required.
+
+Plain URLs are sent directly with no agent card fetch. Use `discover` when you need card metadata first, and use `--a2a-version 0.3` for older direct endpoints.
 
 **Examples:**
 
@@ -154,6 +210,7 @@ a2a-ask task get <url> --task-id <id> [options]
 |--------|-------------|
 | `--task-id` (required) | Task ID to query |
 | `--history-length` | Max history messages to include |
+| `--a2a-version` | Protocol version for direct URL calls |
 | Auth options | Same as `send` |
 
 ---
@@ -172,6 +229,7 @@ a2a-ask task list <url> [options]
 | `--status` | Filter by task state |
 | `--page-size` | Results per page (default: 50) |
 | `--page-token` | Pagination cursor token |
+| `--a2a-version` | Protocol version for direct URL calls |
 | Auth options | Same as `send` |
 
 ---
@@ -187,6 +245,7 @@ a2a-ask task cancel <url> --task-id <id> [options]
 | Option | Description |
 |--------|-------------|
 | `--task-id` (required) | Task ID to cancel |
+| `--a2a-version` | Protocol version for direct URL calls |
 | Auth options | Same as `send` |
 
 ---
@@ -196,10 +255,40 @@ a2a-ask task cancel <url> --task-id <id> [options]
 Interactively authenticate with an A2A agent using OAuth2 device code flow.
 
 ```bash
-a2a-ask auth login <url>
+a2a-ask auth login <url> [--client-id <id>] [--tenant <id>]
 ```
 
-Reads the agent card's security schemes and runs the appropriate interactive authentication flow. The obtained token is stored for reuse.
+Reads the agent card's security schemes and runs the appropriate interactive authentication flow. The obtained token is stored for reuse. When a persisted client registration matches the agent's OAuth2 issuer, the CLI automatically uses that client ID and optional RFC 8707 resource.
+
+---
+
+### `a2a-ask auth register-client`
+
+Register an OAuth2 client for automatic issuer matching.
+
+```bash
+a2a-ask auth register-client --client-id <id> --issuer <url> [--resource <url>]
+```
+
+---
+
+### `a2a-ask auth list-clients`
+
+List registered OAuth2 clients.
+
+```bash
+a2a-ask auth list-clients
+```
+
+---
+
+### `a2a-ask auth remove-client`
+
+Remove a registered OAuth2 client.
+
+```bash
+a2a-ask auth remove-client --issuer <url> [--resource <url>]
+```
 
 ---
 
@@ -230,4 +319,4 @@ All commands that communicate with agents support these auth options:
 | `--binding <binding>` | Protocol binding: `auto`, `http`, `jsonrpc` | `auto` |
 | `--a2a-version <version>` | A2A protocol version | `1.0` |
 
-The CLI automatically detects the agent's protocol version (v0.3 or v1.0) and communicates accordingly. Manual override is rarely needed.
+For plain direct URLs, the CLI defaults to v1.0. When you know an older agent speaks v0.3, pass `--a2a-version 0.3` on `send`, `stream`, or `task` commands.

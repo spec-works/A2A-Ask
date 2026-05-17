@@ -21,12 +21,14 @@ public class DeviceCodeFlow
 
     public async Task<TokenResult?> AuthenticateAsync(
         IEnumerable<string>? requiredScopes = null,
+        string? clientId = null,
+        string? resource = null,
         CancellationToken cancellationToken = default)
     {
         string? tokenUrl = null;
         string? deviceAuthUrlStr = null;
-        string? clientId = null;
         IDictionary<string, string>? scopes = null;
+        clientId ??= "a2a-ask-cli";
 
         if (_scheme.Flows != null)
         {
@@ -48,7 +50,6 @@ public class DeviceCodeFlow
             }
         }
 
-        // Try OIDC/OAuth2 metadata discovery if we don't have endpoints
         if (tokenUrl == null && !string.IsNullOrEmpty(_scheme.OAuth2MetadataUrl))
         {
             var disco = await DiscoverEndpointsAsync(_scheme.OAuth2MetadataUrl, cancellationToken);
@@ -65,15 +66,11 @@ public class DeviceCodeFlow
                 "The agent's OAuth2 configuration doesn't include device code, authorization code, or client credentials flows, " +
                 "and no OAuth2 metadata URL is available.");
 
-        // Derive device auth URL if not explicit
         var tokenUri = new Uri(tokenUrl);
-        string deviceAuthUrl;
-        if (!string.IsNullOrEmpty(deviceAuthUrlStr))
-            deviceAuthUrl = deviceAuthUrlStr;
-        else
-            deviceAuthUrl = DeriveDeviceAuthorizationUrl(tokenUri).ToString();
+        var deviceAuthUrl = !string.IsNullOrEmpty(deviceAuthUrlStr)
+            ? deviceAuthUrlStr
+            : DeriveDeviceAuthorizationUrl(tokenUri).ToString();
 
-        // Merge flow-defined scopes with required scopes from SecurityRequirements
         var allScopes = new HashSet<string>();
         if (scopes != null)
             foreach (var s in scopes.Keys) allScopes.Add(s);
@@ -81,20 +78,21 @@ public class DeviceCodeFlow
             foreach (var s in requiredScopes) allScopes.Add(s);
         var scopeString = string.Join(" ", allScopes);
 
-        // Step 1: Request device authorization using IdentityModel
+        var deviceAuthorizationRequest = new DeviceAuthorizationRequest
+        {
+            Address = deviceAuthUrl,
+            ClientId = clientId,
+            Scope = scopeString
+        };
+        AddResourceParameter(deviceAuthorizationRequest.Parameters, resource);
+
         var deviceAuthResponse = await _httpClient.RequestDeviceAuthorizationAsync(
-            new DeviceAuthorizationRequest
-            {
-                Address = deviceAuthUrl,
-                ClientId = clientId ?? "a2a-ask-cli",
-                Scope = scopeString
-            }, cancellationToken);
+            deviceAuthorizationRequest, cancellationToken);
 
         if (deviceAuthResponse.IsError)
             throw new InvalidOperationException(
                 $"Device authorization failed: {deviceAuthResponse.Error} - {deviceAuthResponse.ErrorDescription}");
 
-        // Step 2: Display instructions to user
         var verificationUri = deviceAuthResponse.VerificationUriComplete
             ?? deviceAuthResponse.VerificationUri;
         var userCode = deviceAuthResponse.UserCode;
@@ -107,7 +105,6 @@ public class DeviceCodeFlow
         Console.WriteLine();
         Console.WriteLine("Waiting for authentication...");
 
-        // Step 3: Poll for token using IdentityModel
         var interval = deviceAuthResponse.Interval is > 0 ? (int)deviceAuthResponse.Interval : 5;
         var expiresIn = deviceAuthResponse.ExpiresIn is > 0 ? (double)deviceAuthResponse.ExpiresIn : 600.0;
         var deadline = DateTime.UtcNow.AddSeconds(expiresIn);
@@ -117,13 +114,16 @@ public class DeviceCodeFlow
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Delay(TimeSpan.FromSeconds(interval), cancellationToken);
 
+            var deviceTokenRequest = new DeviceTokenRequest
+            {
+                Address = tokenUrl,
+                ClientId = clientId,
+                DeviceCode = deviceAuthResponse.DeviceCode!
+            };
+            AddResourceParameter(deviceTokenRequest.Parameters, resource);
+
             var tokenResponse = await _httpClient.RequestDeviceTokenAsync(
-                new DeviceTokenRequest
-                {
-                    Address = tokenUrl,
-                    ClientId = clientId ?? "a2a-ask-cli",
-                    DeviceCode = deviceAuthResponse.DeviceCode!
-                }, cancellationToken);
+                deviceTokenRequest, cancellationToken);
 
             if (tokenResponse.IsError)
             {
@@ -146,7 +146,6 @@ public class DeviceCodeFlow
                 }
             }
 
-            // Success
             return new TokenResult
             {
                 AccessToken = tokenResponse.AccessToken!,
@@ -155,7 +154,9 @@ public class DeviceCodeFlow
                     ? DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
                     : null,
                 TokenType = tokenResponse.TokenType ?? "Bearer",
-                TokenUrl = tokenUrl
+                TokenUrl = tokenUrl,
+                ClientId = clientId,
+                Resource = resource
             };
         }
 
@@ -173,13 +174,15 @@ public class DeviceCodeFlow
             return null;
 
         var client = httpClient ?? new HttpClient();
-        var response = await client.RequestRefreshTokenAsync(
-            new RefreshTokenRequest
-            {
-                Address = expiredToken.TokenUrl,
-                ClientId = "a2a-ask-cli",
-                RefreshToken = expiredToken.RefreshToken
-            }, cancellationToken);
+        var refreshRequest = new RefreshTokenRequest
+        {
+            Address = expiredToken.TokenUrl,
+            ClientId = expiredToken.ClientId ?? "a2a-ask-cli",
+            RefreshToken = expiredToken.RefreshToken
+        };
+        AddResourceParameter(refreshRequest.Parameters, expiredToken.Resource);
+
+        var response = await client.RequestRefreshTokenAsync(refreshRequest, cancellationToken);
 
         if (response.IsError)
             return null;
@@ -192,7 +195,9 @@ public class DeviceCodeFlow
                 ? DateTime.UtcNow.AddSeconds(response.ExpiresIn)
                 : null,
             TokenType = response.TokenType ?? "Bearer",
-            TokenUrl = expiredToken.TokenUrl
+            TokenUrl = expiredToken.TokenUrl,
+            ClientId = expiredToken.ClientId,
+            Resource = expiredToken.Resource
         };
     }
 
@@ -210,6 +215,12 @@ public class DeviceCodeFlow
             }, cancellationToken);
 
         return disco.IsError ? null : disco;
+    }
+
+    private static void AddResourceParameter(Parameters parameters, string? resource)
+    {
+        if (!string.IsNullOrWhiteSpace(resource))
+            parameters.Add("resource", resource);
     }
 
     private static Uri DeriveDeviceAuthorizationUrl(Uri tokenUrl)
@@ -248,7 +259,6 @@ public static class ClientCredentialsFlow
                 : null;
         }
 
-        // Try OAuth2 metadata discovery
         if (tokenUrl == null && !string.IsNullOrEmpty(scheme.OAuth2MetadataUrl))
         {
             var disco = await client.GetDiscoveryDocumentAsync(
@@ -290,7 +300,8 @@ public static class ClientCredentialsFlow
                 ? DateTime.UtcNow.AddSeconds(response.ExpiresIn)
                 : null,
             TokenType = response.TokenType ?? "Bearer",
-            TokenUrl = tokenUrl
+            TokenUrl = tokenUrl,
+            ClientId = clientId
         };
     }
 }

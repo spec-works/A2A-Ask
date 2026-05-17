@@ -14,6 +14,9 @@ public static class AuthCommand
         authCommand.AddCommand(CreateLoginCommand());
         authCommand.AddCommand(CreateLogoutCommand());
         authCommand.AddCommand(CreateStatusCommand());
+        authCommand.AddCommand(CreateRegisterClientCommand());
+        authCommand.AddCommand(CreateListClientsCommand());
+        authCommand.AddCommand(CreateRemoveClientCommand());
         return authCommand;
     }
 
@@ -56,7 +59,7 @@ public static class AuthCommand
                 }
 
                 Console.WriteLine($"Agent: {card.Name}");
-                Console.WriteLine($"Security schemes available:");
+                Console.WriteLine("Security schemes available:");
                 foreach (var (name, scheme) in card.SecuritySchemes)
                 {
                     var schemeType = GetSchemeType(scheme);
@@ -66,7 +69,6 @@ public static class AuthCommand
 
                 var storageKey = TokenStore.BuildStorageKey(url, tenant);
 
-                // If client_id and client_secret provided, use client credentials flow
                 if (!string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(clientSecret))
                 {
                     var oauth2Scheme = FindOAuth2Scheme(card);
@@ -79,7 +81,9 @@ public static class AuthCommand
 
                     Console.WriteLine("Using OAuth2 client_credentials flow...");
                     var tokenResult = await ClientCredentialsFlow.AuthenticateAsync(
-                        oauth2Scheme.Value.Scheme, clientId, clientSecret,
+                        oauth2Scheme.Value.Scheme,
+                        clientId,
+                        clientSecret,
                         cancellationToken: context.GetCancellationToken());
 
                     if (tokenResult != null)
@@ -101,17 +105,39 @@ public static class AuthCommand
                 {
                     var (schemeName, scheme) = oauth2.Value;
                     var requiredScopes = ExtractRequiredScopes(card, schemeName);
+                    var effectiveClientId = clientId;
+                    string? resource = null;
+
+                    if (string.IsNullOrWhiteSpace(effectiveClientId))
+                    {
+                        var issuer = await ResolveIssuerAsync(scheme, context.GetCancellationToken());
+                        if (!string.IsNullOrWhiteSpace(issuer))
+                        {
+                            var registrationStore = new ClientRegistrationStore();
+                            var registration = await registrationStore.FindClientAsync(issuer);
+                            if (registration != null)
+                            {
+                                effectiveClientId = registration.ClientId;
+                                resource = registration.Resource;
+                                Console.WriteLine($"Using registered client '{registration.ClientId}' for issuer: {registration.Issuer}");
+                                if (!string.IsNullOrWhiteSpace(resource))
+                                    Console.WriteLine($"Using resource: {resource}");
+                                Console.WriteLine();
+                            }
+                        }
+                    }
 
                     TokenResult? tokenResult;
-
-                    // Pick flow based on what's available: device code preferred, then auth code
                     if (scheme.Flows?.DeviceCode != null)
                     {
                         Console.WriteLine($"Using OAuth2 device code flow via '{schemeName}'...");
                         Console.WriteLine();
                         var flow = new DeviceCodeFlow(scheme);
                         tokenResult = await flow.AuthenticateAsync(
-                            requiredScopes, context.GetCancellationToken());
+                            requiredScopes,
+                            effectiveClientId,
+                            resource,
+                            context.GetCancellationToken());
                     }
                     else if (scheme.Flows?.AuthorizationCode != null)
                     {
@@ -119,7 +145,11 @@ public static class AuthCommand
                         Console.WriteLine("Opening browser for authentication...");
                         Console.WriteLine();
                         tokenResult = await AuthCodeFlow.AuthenticateAsync(
-                            scheme, requiredScopes, context.GetCancellationToken());
+                            scheme,
+                            requiredScopes,
+                            effectiveClientId,
+                            resource,
+                            context.GetCancellationToken());
                     }
                     else
                     {
@@ -148,13 +178,13 @@ public static class AuthCommand
                     Console.WriteLine("To authenticate, use one of the following options with your commands:");
                     Console.WriteLine();
 
-                    foreach (var (name, scheme) in card.SecuritySchemes)
+                    foreach (var (_, scheme) in card.SecuritySchemes)
                     {
                         if (scheme.SchemeCase == SecuritySchemeCase.HttpAuth)
                         {
                             var http = scheme.HttpAuthSecurityScheme!;
                             if (string.Equals(http.Scheme, "basic", StringComparison.OrdinalIgnoreCase))
-                                Console.WriteLine($"  --auth-user <username> --auth-password <password>");
+                                Console.WriteLine("  --auth-user <username> --auth-password <password>");
                             else
                                 Console.WriteLine($"  --auth-token <your-{http.Scheme ?? "bearer"}-token>");
                         }
@@ -166,7 +196,7 @@ public static class AuthCommand
                         else if (scheme.SchemeCase == SecuritySchemeCase.OpenIdConnect)
                         {
                             var oidc = scheme.OpenIdConnectSecurityScheme!;
-                            Console.WriteLine($"  --auth-token <token-from-oidc-provider>");
+                            Console.WriteLine("  --auth-token <token-from-oidc-provider>");
                             Console.WriteLine($"    OIDC Discovery: {oidc.OpenIdConnectUrl}");
                         }
                     }
@@ -177,6 +207,133 @@ public static class AuthCommand
             catch (Exception ex)
             {
                 ConsoleFormatter.WriteError(ex, verbose);
+                context.ExitCode = 1;
+            }
+        });
+
+        return command;
+    }
+
+    private static Command CreateRegisterClientCommand()
+    {
+        var clientIdOption = new Option<string>("--client-id", "OAuth2 client ID to register")
+        {
+            IsRequired = true
+        };
+        var issuerOption = new Option<string>("--issuer", "OAuth2 issuer URL to match")
+        {
+            IsRequired = true
+        };
+        var resourceOption = new Option<string?>("--resource", "Optional RFC 8707 resource URL");
+
+        var command = new Command("register-client", "Register an OAuth2 client for an issuer")
+        {
+            clientIdOption, issuerOption, resourceOption
+        };
+
+        command.SetHandler(async (InvocationContext context) =>
+        {
+            var clientId = context.ParseResult.GetValueForOption(clientIdOption);
+            var issuer = context.ParseResult.GetValueForOption(issuerOption);
+            var resource = context.ParseResult.GetValueForOption(resourceOption);
+
+            try
+            {
+                var normalizedIssuer = ClientRegistrationStore.NormalizeIssuer(issuer!);
+                var store = new ClientRegistrationStore();
+                await store.RegisterClientAsync(new ClientRegistration
+                {
+                    ClientId = clientId!,
+                    Issuer = normalizedIssuer,
+                    Resource = resource,
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                Console.WriteLine($"Client registered for issuer: {normalizedIssuer}");
+            }
+            catch (Exception ex)
+            {
+                ConsoleFormatter.WriteError(ex, false);
+                context.ExitCode = 1;
+            }
+        });
+
+        return command;
+    }
+
+    private static Command CreateListClientsCommand()
+    {
+        var command = new Command("list-clients", "List registered OAuth2 clients");
+
+        command.SetHandler(async (InvocationContext context) =>
+        {
+            try
+            {
+                var store = new ClientRegistrationStore();
+                var registrations = await store.ListClientsAsync();
+                if (registrations.Count == 0)
+                {
+                    Console.WriteLine("No registered clients.");
+                    return;
+                }
+
+                var rows = registrations
+                    .Select(r => new[]
+                    {
+                        r.Issuer,
+                        r.ClientId,
+                        r.Resource ?? "—",
+                        r.CreatedAt.ToUniversalTime().ToString("u")
+                    })
+                    .ToList();
+
+                WriteTable(
+                    ["Issuer", "Client ID", "Resource", "Registered"],
+                    rows);
+            }
+            catch (Exception ex)
+            {
+                ConsoleFormatter.WriteError(ex, false);
+                context.ExitCode = 1;
+            }
+        });
+
+        return command;
+    }
+
+    private static Command CreateRemoveClientCommand()
+    {
+        var issuerOption = new Option<string>("--issuer", "OAuth2 issuer URL to remove")
+        {
+            IsRequired = true
+        };
+        var resourceOption = new Option<string?>("--resource", "Optional RFC 8707 resource URL");
+
+        var command = new Command("remove-client", "Remove a registered OAuth2 client")
+        {
+            issuerOption, resourceOption
+        };
+
+        command.SetHandler(async (InvocationContext context) =>
+        {
+            var issuer = context.ParseResult.GetValueForOption(issuerOption);
+            var resource = context.ParseResult.GetValueForOption(resourceOption);
+
+            try
+            {
+                var normalizedIssuer = ClientRegistrationStore.NormalizeIssuer(issuer!);
+                var normalizedResource = ClientRegistrationStore.NormalizeResource(resource);
+                var store = new ClientRegistrationStore();
+                var removed = await store.RemoveClientAsync(normalizedIssuer, normalizedResource);
+
+                if (removed)
+                    Console.WriteLine($"Removed client for issuer: {normalizedIssuer}");
+                else
+                    Console.WriteLine($"No registered client found for issuer: {normalizedIssuer}");
+            }
+            catch (Exception ex)
+            {
+                ConsoleFormatter.WriteError(ex, false);
                 context.ExitCode = 1;
             }
         });
@@ -205,8 +362,7 @@ public static class AuthCommand
         return "Unknown";
     }
 
-    private static (string Name, OAuth2SecurityScheme Scheme)?
-        FindOAuth2Scheme(AgentCard card)
+    private static (string Name, OAuth2SecurityScheme Scheme)? FindOAuth2Scheme(AgentCard card)
     {
         if (card.SecuritySchemes == null) return null;
 
@@ -231,12 +387,90 @@ public static class AuthCommand
         foreach (var req in card.SecurityRequirements)
         {
             if (req.Schemes != null && req.Schemes.TryGetValue(schemeName, out var scopeList))
-            {
                 scopes.AddRange(scopeList.List);
-            }
         }
         return scopes.Count > 0 ? scopes : null;
     }
+
+    internal static async Task<string?> ResolveIssuerAsync(
+        OAuth2SecurityScheme scheme,
+        CancellationToken cancellationToken = default)
+    {
+        string? discoveredIssuer = null;
+        if (!string.IsNullOrWhiteSpace(scheme.OAuth2MetadataUrl))
+        {
+            var flow = new DeviceCodeFlow(scheme);
+            var discovery = await flow.DiscoverEndpointsAsync(scheme.OAuth2MetadataUrl, cancellationToken);
+            discoveredIssuer = discovery?.Issuer;
+        }
+
+        return ExtractIssuerFromOAuth2Scheme(scheme, discoveredIssuer);
+    }
+
+    internal static string? ExtractIssuerFromOAuth2Scheme(
+        OAuth2SecurityScheme scheme,
+        string? discoveredIssuer = null)
+    {
+        if (!string.IsNullOrWhiteSpace(discoveredIssuer))
+            return ClientRegistrationStore.NormalizeIssuer(discoveredIssuer);
+
+        if (!string.IsNullOrWhiteSpace(scheme.OAuth2MetadataUrl))
+        {
+            var metadataUri = new Uri(scheme.OAuth2MetadataUrl);
+            var issuerPath = metadataUri.AbsolutePath;
+            var wellKnownIndex = issuerPath.IndexOf("/.well-known/", StringComparison.OrdinalIgnoreCase);
+            if (wellKnownIndex >= 0)
+                issuerPath = issuerPath[..wellKnownIndex];
+
+            var issuerUri = new UriBuilder(metadataUri)
+            {
+                Path = issuerPath,
+                Query = string.Empty,
+                Fragment = string.Empty
+            };
+            return ClientRegistrationStore.NormalizeIssuer(issuerUri.Uri.ToString());
+        }
+
+        var tokenUrl = GetTokenUrl(scheme);
+        return string.IsNullOrWhiteSpace(tokenUrl)
+            ? null
+            : ClientRegistrationStore.NormalizeIssuer(new Uri(tokenUrl).GetLeftPart(UriPartial.Authority));
+    }
+
+    private static string? GetTokenUrl(OAuth2SecurityScheme scheme)
+    {
+        if (scheme.Flows == null)
+            return null;
+
+        return scheme.Flows.FlowCase switch
+        {
+            OAuthFlowCase.DeviceCode => scheme.Flows.DeviceCode?.TokenUrl,
+            OAuthFlowCase.AuthorizationCode => scheme.Flows.AuthorizationCode?.TokenUrl,
+            OAuthFlowCase.ClientCredentials => scheme.Flows.ClientCredentials?.TokenUrl,
+            _ => null
+        };
+    }
+
+    private static void WriteTable(IReadOnlyList<string> headers, IReadOnlyList<string[]> rows)
+    {
+        var widths = new int[headers.Count];
+        for (var i = 0; i < headers.Count; i++)
+            widths[i] = headers[i].Length;
+
+        foreach (var row in rows)
+        {
+            for (var i = 0; i < row.Length; i++)
+                widths[i] = Math.Max(widths[i], row[i].Length);
+        }
+
+        Console.WriteLine(FormatRow(headers, widths));
+        Console.WriteLine(string.Join("  ", widths.Select(width => new string('-', width))));
+        foreach (var row in rows)
+            Console.WriteLine(FormatRow(row, widths));
+    }
+
+    private static string FormatRow(IReadOnlyList<string> cells, IReadOnlyList<int> widths) =>
+        string.Join("  ", cells.Select((cell, index) => cell.PadRight(widths[index])));
 
     private static Command CreateLogoutCommand()
     {
