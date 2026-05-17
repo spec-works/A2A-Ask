@@ -8,12 +8,8 @@
     <RootNamespace>A2AAsk.IntegrationTests</RootNamespace>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <A2ASdkRoot Condition="'$(A2A_SDK_ROOT)' != ''">$(A2A_SDK_ROOT)</A2ASdkRoot>
-    <A2ASdkRoot Condition="'$(A2ASdkRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..\..\..\a2a\a2a-dotnet'))</A2ASdkRoot>
-  </PropertyGroup>
-
   <ItemGroup>
+    <PackageReference Include="A2A" Version="1.0.0-preview2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.5" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -23,7 +19,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\A2A-Ask\A2A-Ask.csproj" />
     <ProjectReference Include="..\TestAgentServer\TestAgentServer.csproj" />
-    <ProjectReference Include="$(A2ASdkRoot)\src\A2A\A2A.csproj" />
   </ItemGroup>
 
 </Project>

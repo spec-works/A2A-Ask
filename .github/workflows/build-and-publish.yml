@@ -20,13 +20,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Checkout a2a-dotnet SDK
-      uses: actions/checkout@v4
-      with:
-        repository: a2aproject/a2a-dotnet
-        ref: darrelmiller/issue-331-version-negotiation
-        path: a2a-dotnet
-
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
@@ -34,34 +27,21 @@ jobs:
 
     - name: Restore
       working-directory: ${{ env.TEST_PATH }}
-      run: dotnet restore /p:RestoreConfigFile=${{ github.workspace }}/nuget.config
-      env:
-        A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
+      run: dotnet restore
 
     - name: Build
       working-directory: ${{ env.TEST_PATH }}
       run: dotnet build --no-restore --configuration Release
-      env:
-        A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
 
     - name: Test
       working-directory: ${{ env.TEST_PATH }}
       run: dotnet test --no-build --configuration Release --verbosity normal
-      env:
-        A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
 
   pack:
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
-    - name: Checkout a2a-dotnet SDK
-      uses: actions/checkout@v4
-      with:
-        repository: a2aproject/a2a-dotnet
-        ref: darrelmiller/issue-331-version-negotiation
-        path: a2a-dotnet
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -86,10 +66,7 @@ jobs:
         dotnet pack ${{ env.PROJECT_PATH }} \
           --configuration Release \
           --output ./artifacts \
-          /p:Version=${{ steps.version.outputs.version }} \
-          /p:RestoreConfigFile=${{ github.workspace }}/nuget.config
-      env:
-        A2A_SDK_ROOT: ${{ github.workspace }}/a2a-dotnet
+          /p:Version=${{ steps.version.outputs.version }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4

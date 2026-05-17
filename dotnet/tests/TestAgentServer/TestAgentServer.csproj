@@ -7,15 +7,10 @@
     <RootNamespace>TestAgentServer</RootNamespace>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <A2ASdkRoot Condition="'$(A2A_SDK_ROOT)' != ''">$(A2A_SDK_ROOT)</A2ASdkRoot>
-    <A2ASdkRoot Condition="'$(A2ASdkRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..\..\..\a2a\a2a-dotnet'))</A2ASdkRoot>
-  </PropertyGroup>
-
   <ItemGroup>
-    <ProjectReference Include="$(A2ASdkRoot)\src\A2A\A2A.csproj" />
-    <ProjectReference Include="$(A2ASdkRoot)\src\A2A.AspNetCore\A2A.AspNetCore.csproj" />
-    <ProjectReference Include="$(A2ASdkRoot)\src\A2A.V0_3\A2A.V0_3.csproj" />
+    <PackageReference Include="A2A" Version="1.0.0-preview2" />
+    <PackageReference Include="A2A.AspNetCore" Version="1.0.0-preview2" />
+    <PackageReference Include="A2A.V0_3" Version="1.0.0-preview2" />
   </ItemGroup>
 
 </Project>
