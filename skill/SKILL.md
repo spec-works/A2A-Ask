@@ -10,15 +10,15 @@ license: MIT
 compatibility: Requires .NET 10.0 or later SDK. Works on Windows, macOS, and Linux.
 metadata:
   author: spec-works
-  version: "1.0"
+  version: "1.2"
   repository: https://github.com/spec-works/A2A-Ask
 ---
 
 # A2A-Ask CLI — Talk to A2A Agents from the Command Line
 
-A2A-Ask (`a2a-ask`) is a CLI tool that lets you interact with any remote agent implementing the [A2A (Agent-to-Agent) protocol](https://a2a-protocol.org/latest/specification/). It handles agent discovery, message sending, streaming responses, multi-turn conversations, task management, and authentication — all from the terminal.
+A2A-Ask (`a2a-ask`) is a CLI tool that lets you interact with any remote agent implementing the [A2A (Agent-to-Agent) protocol](https://a2a-protocol.org/latest/specification/). It handles agent discovery, catalog browsing, message sending, streaming responses, multi-turn conversations, task management, and authentication — all from the terminal.
 
-**A2A is an open protocol** that enables AI agents to communicate with each other. Any agent that publishes an agent card and implements the A2A JSON-RPC API can be called with this tool. The CLI supports both A2A v1.0 and v0.3 agents transparently.
+**A2A is an open protocol** that enables AI agents to communicate with each other. Any agent that publishes an agent card and implements the A2A JSON-RPC API can be called with this tool. The CLI defaults to A2A v1.0 and can call older v0.3 agents with `--a2a-version 0.3`.
 
 ## Prerequisites — Installing .NET
 
@@ -65,11 +65,11 @@ a2a-ask version
 
 ## Workflow — How to Interact with an A2A Agent
 
-**Always follow this sequence when interacting with an A2A agent:**
+**Choose one of these discovery paths before you start sending messages:**
 
 ### Step 1: Discover the Agent
 
-Before sending any messages, discover the agent to understand its capabilities, skills, and security requirements.
+If you already have a direct agent URL, discover the agent card first so you understand its capabilities, skills, and security requirements.
 
 ```bash
 a2a-ask discover <agent-url> --output text
@@ -84,6 +84,17 @@ The `<agent-url>` is the base URL of the agent endpoint. The CLI will automatica
 ```bash
 a2a-ask discover https://example.com/agents/my-agent --output text
 ```
+
+**Catalog-first alternative:**
+
+If you start from an AI catalog instead of a direct agent URL, browse the catalog first and then resolve the specific agent you want:
+
+```bash
+a2a-ask catalog list <catalog-url> --output text
+a2a-ask catalog show @<agent>@<catalog-url> --output text
+```
+
+Use `@@catalog` as shorthand when you want to browse a catalog, and use `@agent@catalog` when you want one specific agent. Bare `@agent` targets are parsed, but Phase 1 still requires an explicit catalog host or URL.
 
 **What to look for in the response:**
 - **Name and description** — what the agent does
@@ -142,15 +153,78 @@ a2a-ask send <agent-url> -m "First request" --context-id my-session-123
 a2a-ask send <agent-url> -m "Related request" --context-id my-session-123
 ```
 
+## Catalog Commands
+
+Use catalog commands when you need to inspect an AI catalog before choosing an A2A agent.
+
+### `a2a-ask catalog list <target>`
+
+List A2A agents available in a catalog.
+
+```bash
+a2a-ask catalog list <target> [options]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `<target>` | Catalog URL, host/origin shorthand, or `@@catalog` reference |
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--filter <text>` | Filter by entry id, display name, description, or tags | — |
+| `--output <json\|text>` | Output format | `json` |
+| `--pretty` | Pretty-print JSON | `false` |
+| `-v, --verbose` | Verbose output | `false` |
+
+### `a2a-ask catalog show <target>`
+
+Show one resolved A2A agent from a catalog.
+
+```bash
+a2a-ask catalog show <target>
+```
+
+| Argument | Description |
+|----------|-------------|
+| `<target>` | Catalog URL, host/origin shorthand, `@@catalog`, or `@agent@catalog` target |
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--output <json\|text>` | Output format | `json` |
+| `--pretty` | Pretty-print JSON | `false` |
+| `-v, --verbose` | Verbose output | `false` |
+
+If the catalog contains multiple A2A agents, use `@agent@catalog` to choose one explicitly. Bare `@agent` targets are not enough in Phase 1; include the catalog host or URL.
+
+### Catalog target syntax
+
+| Target form | Resolves as |
+|-------------|-------------|
+| `@agentName` | Bare catalog target. Parsed, but Phase 1 still requires an explicit catalog host or URL. |
+| `@agentName@catalogAlias` | Resolve one agent from a specific catalog host, origin, or full catalog URL. |
+| `@@catalogAlias` | Browse a catalog by host, origin, or full catalog URL. |
+
+### Direct send behavior
+
+- `discover` fetches an agent card.
+- `send` uses a plain URL as the request endpoint directly.
+- `stream` and `task` commands also use the URL you pass directly; they do not fetch the card first.
+- Catalog-resolved targets still use the catalog's agent card metadata when needed.
+- For older direct endpoints, add `--a2a-version 0.3`.
+
 ## CLI Commands Reference
 
-### `a2a-ask discover <url>`
+### `a2a-ask discover <target>`
 
 Fetch and display an A2A agent card.
 
 ```bash
-a2a-ask discover <url> [options]
+a2a-ask discover <target> [options]
 ```
+
+| Argument | Description |
+|----------|-------------|
+| `<target>` | Agent URL or `@agent@catalog` reference |
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -191,12 +265,16 @@ a2a-ask send <url> -m "message" [options]
 | `--api-key-location` | | API key location: header, query, or cookie | `header` |
 | `--client-id` | | OAuth2 client ID (for client_credentials) | — |
 | `--client-secret` | | OAuth2 client secret (for client_credentials) | — |
+| `--binding` | | Protocol binding: auto, http, jsonrpc | `auto` |
+| `--a2a-version` | | A2A protocol version (`0.3` or `1.0`) | `1.0` |
 | `--tenant` | | Tenant ID (separates token storage per tenant) | — |
 | `--output` | | Output format (json/text) | `json` |
 | `--pretty` | | Pretty-print JSON | `false` |
 | `-v, --verbose` | | Verbose output | `false` |
 
 At least one of `--message`, `--file`, or `--data` is required.
+
+Plain URLs are sent directly with no agent card fetch. Use `discover` if you need card metadata first, and use `--a2a-version 0.3` for older direct endpoints.
 
 ### `a2a-ask stream <url>`
 
@@ -206,7 +284,7 @@ Send a message with streaming response, showing real-time progress.
 a2a-ask stream <url> -m "message" [options]
 ```
 
-Same options as `send`, plus:
+Same options as `send` (including `--a2a-version 0.3` for older direct endpoints), plus:
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -224,6 +302,7 @@ a2a-ask task get <url> --task-id <id> [options]
 |--------|-------------|
 | `--task-id` (required) | Task ID to query |
 | `--history-length` | Max history messages |
+| `--a2a-version` | Protocol version for direct URL calls (default: `1.0`) |
 | Auth options | Same as `send` |
 
 ### `a2a-ask task list <url>`
@@ -240,6 +319,7 @@ a2a-ask task list <url> [options]
 | `--status` | Filter by task state |
 | `--page-size` | Results per page (default: 50) |
 | `--page-token` | Pagination cursor |
+| `--a2a-version` | Protocol version for direct URL calls (default: `1.0`) |
 | Auth options | Same as `send` |
 
 ### `a2a-ask task cancel <url>`
@@ -249,6 +329,13 @@ Cancel a running task.
 ```bash
 a2a-ask task cancel <url> --task-id <id> [options]
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--task-id` (required) | Task ID to cancel |
+| `--a2a-version` | Protocol version for direct URL calls |
+| Auth options | Same as `send` |
+
 
 ### `a2a-ask auth login <url>`
 
@@ -283,6 +370,42 @@ Show authentication status for an agent — token validity, expiry, and whether 
 
 ```bash
 a2a-ask auth status <url> [--tenant <id>]
+```
+
+### `a2a-ask auth register-client`
+
+Register an OAuth2 client for automatic use when encountering agents authenticated by a matching identity provider.
+
+```bash
+a2a-ask auth register-client --client-id <id> --issuer <url> [--resource <url>]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--client-id` | Yes | The OAuth2 client ID to register |
+| `--issuer` | Yes | The IDP's issuer URL (e.g., `https://login.microsoftonline.com/common/v2.0`) |
+| `--resource` | No | The resource server URL per RFC 8707 (constrains which resource server the token is valid for) |
+
+Once registered, the CLI automatically uses this client when it encounters an agent whose OAuth2 security scheme matches the registered issuer. This eliminates the need to pass `--client-id` manually for known IDPs.
+
+Registrations are stored persistently in `~/.a2a-ask/clients.json` (encrypted with DPAPI on Windows).
+
+### `a2a-ask auth list-clients`
+
+List all registered OAuth2 clients.
+
+```bash
+a2a-ask auth list-clients
+```
+
+Shows a table of all registered clients with their issuer, client ID, resource (if set), and registration date.
+
+### `a2a-ask auth remove-client`
+
+Remove a registered OAuth2 client.
+
+```bash
+a2a-ask auth remove-client --issuer <url> [--resource <url>]
 ```
 
 ### `a2a-ask version`
@@ -332,6 +455,8 @@ a2a-ask auth login <url>
 ```
 This will display a device code and verification URL. Ask the user to visit the URL and enter the code. Once authenticated, the token is stored and subsequent commands will use it automatically.
 
+If the user previously registered a client for the matching issuer with `a2a-ask auth register-client`, the CLI uses that client automatically instead of requiring `--client-id` to be passed manually.
+
 → For service-to-service auth (client credentials), ask the user for their client ID and secret:
 ```bash
 a2a-ask auth login <url> --client-id "my-app" --client-secret "secret"
@@ -360,8 +485,9 @@ Follow this logic when an agent requires authentication:
 1. Check the agent card's security schemes (from `discover` output)
 2. If **API Key** → ask the user for the key → pass via `--api-key` (with `--api-key-location` if not header)
 3. If **HTTP Bearer** → ask the user for a token → pass via `--auth-token`
-4. If **HTTP Basic** → ask the user for credentials → pass via `--auth-user` + `--auth-password`
-5. If **OAuth2 with device code** → run `a2a-ask auth login <url>` → interactive flow
+4. If **OAuth2 with device code** → run `a2a-ask auth login <url>` → interactive flow
+4a. If **OAuth2** and the user has previously registered a client via `auth register-client` for the matching issuer → the CLI uses the registered client automatically. No manual credential entry needed.
+5. If **HTTP Basic** → ask the user for credentials → pass via `--auth-user` + `--auth-password`
 6. If **OAuth2 with client credentials** → ask for client ID/secret → `a2a-ask auth login <url> --client-id <id> --client-secret <secret>`
 7. If **OpenID Connect** → extract the issuer URL, guide user to obtain a token, pass via `--auth-token`
 8. If **auth-required** state returned mid-task → obtain credentials and retry the same task with `--task-id` and auth options
@@ -486,6 +612,26 @@ a2a-ask auth login https://secure-agent.example.com
 a2a-ask send https://secure-agent.example.com -m "Secured request"
 ```
 
+### Registering OAuth2 Clients for Repeated Use
+
+```bash
+# One-time: register a client for Azure AD
+a2a-ask auth register-client \
+  --client-id "my-app-client-id" \
+  --issuer "https://login.microsoftonline.com/common/v2.0" \
+  --resource "api://my-agent-api"
+
+# Now any agent secured by this issuer auto-uses the registered client
+a2a-ask auth login https://secured-agent.example.com
+# → Matches the issuer, uses the registered client ID automatically
+
+# List registered clients
+a2a-ask auth list-clients
+
+# Remove a registration
+a2a-ask auth remove-client --issuer "https://login.microsoftonline.com/common/v2.0"
+```
+
 ## Error Handling
 
 ### Common Errors and Solutions
@@ -495,7 +641,7 @@ a2a-ask send https://secure-agent.example.com -m "Secured request"
 | Connection refused / timeout | Agent is down or URL is wrong | Verify the URL, try `discover` first |
 | 401 Unauthorized | Missing or invalid auth | Check security requirements with `discover`, provide correct credentials |
 | 404 Not Found | Wrong endpoint URL | Verify the agent URL, check if well-known path is correct |
-| Empty response `{}` | Protocol version mismatch | The CLI auto-negotiates v0.3/v1.0 — if this persists, the agent may have issues |
+| Empty response `{}` | Protocol version mismatch | Retry with `--a2a-version 0.3` for older agents, or verify the endpoint supports the requested version |
 | `input-required` state | Agent needs more info | Read the agent's question, send a follow-up with `--task-id` |
 | `auth-required` state | Auth needed mid-task | Obtain credentials, retry with auth options and `--task-id` |
 | `failed` state | Agent processing error | Read the error message in the response, adjust request and retry |
@@ -552,9 +698,9 @@ A2A (Agent-to-Agent) is an open protocol that allows AI agents to communicate wi
 ### Protocol Versions
 
 - **v1.0** — Current version with `supportedInterfaces`, discriminated unions, structured types
-- **v0.3** — Older version still used by many agents — the CLI handles both transparently
+- **v0.3** — Older version still used by many agents; use `--a2a-version 0.3` when calling direct endpoints
 
-The CLI automatically detects the agent's protocol version and communicates accordingly. You don't need to specify the version manually.
+For plain direct URLs, the CLI defaults to v1.0. When you know an older agent speaks v0.3, pass `--a2a-version 0.3` on `send`, `stream`, or `task` commands.
 
 ## Limitations
 
