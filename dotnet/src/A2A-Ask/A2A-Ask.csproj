@@ -12,7 +12,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>a2a-ask</ToolCommandName>
     <PackageId>SpecWorks.A2A-Ask</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Authors>spec-works</Authors>
     <Description>A2A-Ask: CLI tool for interacting with A2A (Agent-to-Agent) protocol agents. Discover agents, send messages, stream responses, and manage tasks from the command line or via AI agent skills.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -35,6 +35,7 @@
     <ProjectReference Include="$(A2ASdkRoot)\src\A2A\A2A.csproj" />
     <ProjectReference Include="$(A2ASdkRoot)\src\A2A.V0_3Compat\A2A.V0_3Compat.csproj" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <PackageReference Include="SpecWorks.AiCatalog" Version="0.1.0" />
   </ItemGroup>
 
   <ItemGroup>
