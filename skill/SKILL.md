@@ -10,7 +10,7 @@ license: MIT
 compatibility: Requires .NET 10.0 or later SDK. Works on Windows, macOS, and Linux.
 metadata:
   author: spec-works
-  version: "1.3"
+  version: "1.4"
   repository: https://github.com/spec-works/A2A-Ask
 ---
 
@@ -90,11 +90,11 @@ a2a-ask discover https://example.com/agents/my-agent --output text
 If you start from an AI catalog instead of a direct agent URL, browse the catalog first and then resolve the specific agent you want:
 
 ```bash
-a2a-ask catalog list <catalog-url> --output text
-a2a-ask catalog show @<agent>@<catalog-url> --output text
+a2a-ask catalog list mycatalog --output text
+a2a-ask catalog show myagent@mycatalog --output text
 ```
 
-Use `@@catalog` as shorthand when you want to browse a catalog, and use `@agent@catalog` when you want one specific agent. Bare `@agent` targets are parsed, but Phase 1 still requires an explicit catalog host or URL.
+Use `agent@catalog` to resolve a specific agent from a registered catalog alias. A bare name like `mycatalog` first checks registered aliases, then searches all registered catalogs for an agent with that name. Use `+` to encode spaces in names, such as `my+agent@my+catalog`. 
 
 **What to look for in the response:**
 - **Name and description** — what the agent does
@@ -157,17 +157,51 @@ a2a-ask send <agent-url> -m "Related request" --context-id my-session-123
 
 Use catalog commands when you need to inspect an AI catalog before choosing an A2A agent.
 
-### `a2a-ask catalog list <target>`
+### `a2a-ask catalog add <alias> <url>`
 
-List A2A agents available in a catalog.
+Register a catalog alias for easy reuse.
 
 ```bash
-a2a-ask catalog list <target> [options]
+a2a-ask catalog add <alias> <url> [--no-validate]
 ```
 
 | Argument | Description |
 |----------|-------------|
-| `<target>` | Catalog URL, host/origin shorthand, or `@@catalog` reference |
+| `<alias>` | Friendly name to register for the catalog |
+| `<url>` | Catalog URL |
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--no-validate` | Skip validating the catalog during registration | `false` |
+| `-v, --verbose` | Verbose output | `false` |
+
+### `a2a-ask catalog remove <alias>`
+
+Remove a registered catalog alias.
+
+```bash
+a2a-ask catalog remove <alias>
+```
+
+| Argument | Description |
+|----------|-------------|
+| `<alias>` | Registered catalog alias to remove |
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-v, --verbose` | Verbose output | `false` |
+
+### `a2a-ask catalog list [target]`
+
+When no target is provided, show all registered catalog aliases. When a target is provided, list A2A agents available in that catalog.
+
+```bash
+a2a-ask catalog list [target] [options]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `[target]` | Optional catalog alias or URL to browse |
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -186,7 +220,7 @@ a2a-ask catalog show <target>
 
 | Argument | Description |
 |----------|-------------|
-| `<target>` | Catalog URL, host/origin shorthand, `@@catalog`, or `@agent@catalog` target |
+| `<target>` | Catalog alias, direct URL, bare name, or `agent@catalog` target |
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -194,22 +228,23 @@ a2a-ask catalog show <target>
 | `--pretty` | Pretty-print JSON | `false` |
 | `-v, --verbose` | Verbose output | `false` |
 
-If the catalog contains multiple A2A agents, use `@agent@catalog` to choose one explicitly. Bare `@agent` targets are not enough in Phase 1; include the catalog host or URL.
+A bare name first checks registered catalog aliases, then searches all registered catalogs in parallel for a matching agent. Use `agent@catalog` when you want to resolve a specific agent from a specific registered catalog alias.
 
 ### Catalog target syntax
 
 | Target form | Resolves as |
 |-------------|-------------|
-| `@agentName` | Bare catalog target. Parsed, but Phase 1 still requires an explicit catalog host or URL. |
-| `@agentName@catalogAlias` | Resolve one agent from a specific catalog host, origin, or full catalog URL. |
-| `@@catalogAlias` | Browse a catalog by host, origin, or full catalog URL. |
+| `https://example.com/catalog` | Direct URL to a catalog or agent |
+| `agent@catalog` | Resolve a specific agent from a registered catalog alias |
+| `mycatalog` | Bare name: first checks registered aliases, then searches all registered catalogs |
+| `my+agent@my+catalog` | Spaces encoded as `+` in agent and catalog names |
 
 ### Direct send behavior
 
-- `discover` fetches an agent card.
-- `send` uses a plain URL as the request endpoint directly.
-- `stream` and `task` commands also use the URL you pass directly; they do not fetch the card first.
-- Catalog-resolved targets still use the catalog's agent card metadata when needed.
+- `discover`, `send`, and `stream` all use the same target resolution rules: registered catalog aliases, `agent@catalog`, bare names, or direct URLs.
+- Targets containing `://` are treated as direct URLs.
+- Bare names containing `.`, `:`, or `/` are also treated as URLs (for example, `localhost:5000`).
+- Catalog-resolved targets use the resolved agent card metadata when needed.
 - For older direct endpoints, add `--a2a-version 0.3`.
 
 ## CLI Commands Reference
@@ -224,7 +259,7 @@ a2a-ask discover <target> [options]
 
 | Argument | Description |
 |----------|-------------|
-| `<target>` | Agent URL or `@agent@catalog` reference |
+| `<target>` | Agent URL, catalog alias, bare name, or `agent@catalog` reference |
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -596,6 +631,28 @@ a2a-ask discover <url> --output text --pretty
 # Step 3: Handle authentication if needed
 # Step 4: Send a message appropriate to the agent's skills
 a2a-ask send <url> -m "request matching the agent's described skills"
+```
+
+### Working with Catalog Aliases
+
+```bash
+# Register a catalog alias
+a2a-ask catalog add myorg https://catalog.example.com/agents
+
+# List all registered aliases
+a2a-ask catalog list
+
+# Browse agents in the registered catalog
+a2a-ask catalog list myorg --output text
+
+# Send to a specific agent using alias
+a2a-ask send myagent@myorg -m "Hello"
+
+# Send using bare name (searches all registered catalogs)
+a2a-ask send myagent -m "Hello"
+
+# Remove an alias
+a2a-ask catalog remove myorg
 ```
 
 ### Working with a Secured Agent
