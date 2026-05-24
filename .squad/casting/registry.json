@@ -1,0 +1,46 @@
+{
+  "agents": {
+    "lead": {
+      "role": "Lead / Architect",
+      "charter": ".squad/agents/lead/charter.md",
+      "status": "active",
+      "hired_at": "2026-05-25T00:00:00Z"
+    },
+    "dotnet-dev": {
+      "role": ".NET Developer",
+      "charter": ".squad/agents/dotnet-dev/charter.md",
+      "status": "active",
+      "hired_at": "2026-05-25T00:00:00Z"
+    },
+    "test-author": {
+      "role": "Test Engineer",
+      "charter": ".squad/agents/test-author/charter.md",
+      "status": "active",
+      "hired_at": "2026-05-25T00:00:00Z"
+    },
+    "docs-writer": {
+      "role": "Technical Writer",
+      "charter": ".squad/agents/docs-writer/charter.md",
+      "status": "active",
+      "hired_at": "2026-05-25T00:00:00Z"
+    },
+    "packager": {
+      "role": "Package Publisher",
+      "charter": ".squad/agents/packager/charter.md",
+      "status": "active",
+      "hired_at": "2026-05-25T00:00:00Z"
+    },
+    "release-auditor": {
+      "role": "Release Auditor",
+      "charter": ".squad/agents/release-auditor/charter.md",
+      "status": "active",
+      "hired_at": "2026-05-25T00:00:00Z"
+    },
+    "scribe": {
+      "role": "Scribe",
+      "charter": ".squad/agents/scribe/charter.md",
+      "status": "active",
+      "hired_at": "2026-05-24T00:00:00Z"
+    }
+  }
+}

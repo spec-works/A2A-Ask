@@ -1,0 +1,11 @@
+{
+  "upstreams": [
+    {
+      "name": "factory",
+      "type": "local",
+      "source": "C:\\src\\github\\spec-works\\factory-squad",
+      "added_at": "2026-05-24T22:22:59.809Z",
+      "last_synced": "2026-05-24T22:29:48.180Z"
+    }
+  ]
+}
