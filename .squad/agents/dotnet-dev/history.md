@@ -13,6 +13,7 @@ Performed a full read of all .cs source files under `dotnet/src/A2A-Ask/`. No co
 - Removed the unsupported `--binding` option, centralized global option access in `Commands/GlobalOptions.cs`, and consolidated cross-catalog agent matching through `CatalogInputResolver.FindMatchingAgents`.
 - Reused `SendCommand.BuildParts()` from `StreamCommand`, fixed `--data` to preserve any JSON shape, added real query-string API key support via an HTTP handler, and added callback port fallback for auth code login.
 - Verified the CLI with `dotnet build` in `dotnet/src/A2A-Ask/` and `dotnet test ..\A2A-Ask.sln` from `dotnet/tests/`.
+- Added `catalog install`, `catalog uninstall`, `catalog installed`, and `catalog sync` to manage Copilot bridge files in `~/.copilot/agents/` using `remote-agent` frontmatter plus generated-content markers.
 
 ### Project Layout
 - Source root: `dotnet/src/A2A-Ask/`
@@ -51,3 +52,11 @@ Performed a full read of all .cs source files under `dotnet/src/A2A-Ask/`. No co
 ## Team Review Update - 2026-05-24T22:41:52Z
 Scribe completed decision inbox processing and session documentation.
 All team findings consolidated into decisions.md and orchestration logs.
+
+## M1 Session Update - 2026-05-25T17:15:15Z
+
+**Build Status:** ✅ Build succeeded
+
+**Orchestration Log:** `.squad/orchestration-log/2026-05-25T17-15-15-dotnet-dev.md`
+
+**Session Summary:** Catalog install infrastructure (M1) complete and tested. BridgeGenerator, FrontmatterReader, and CatalogCommand subcommands working with all tests passing (110/110).

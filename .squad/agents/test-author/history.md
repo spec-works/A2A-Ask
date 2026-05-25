@@ -71,6 +71,19 @@ All 124 tests pass as of this review.
 10. `CatalogCommand` — zero coverage (list with filter, add with validation, remove)
 11. `StreamCommand` — zero integration coverage via command handler
 
+### 2026-05-25 — Spec-first catalog install tests
+- Added `BridgeGeneratorTests` covering kebab-case conversion, built-in name collisions, and generated Markdown sections for catalog and direct targets
+- Added `FrontmatterReaderTests` covering valid parsing, missing frontmatter/remote-agent handling, optional field defaults, and extra-field tolerance
+- The new tests use reflection-based invocation so the test project still builds before the implementation files land, while preserving the expected public behavior assertions
+
 ## Team Review Update - 2026-05-24T22:41:52Z
 Scribe completed decision inbox processing and session documentation.
 All team findings consolidated into decisions.md and orchestration logs.
+
+## M1 Session Update - 2026-05-25T17:15:15Z
+
+**Test Status:** ✅ All 33 new tests pass (Round 2 - API-aligned tests)
+
+**Orchestration Log:** `.squad/orchestration-log/2026-05-25T17-15-15-test-author.md`
+
+**Session Summary:** Rewrote BridgeGeneratorTests and FrontmatterReaderTests to match implemented API. Full suite: 110 tests pass (77 existing + 33 new catalog tests).
