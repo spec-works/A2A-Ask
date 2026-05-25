@@ -1,6 +1,5 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.Text.Json;
 using A2A;
 using A2AAsk.Auth;
 using A2AAsk.Output;
@@ -40,6 +39,7 @@ public static class StreamCommand
         var authHeaderOption = CommonOptions.AuthHeader();
         var apiKeyOption = CommonOptions.ApiKey();
         var apiKeyHeaderOption = CommonOptions.ApiKeyHeader();
+        var apiKeyLocationOption = CommonOptions.ApiKeyLocation();
         var authUserOption = CommonOptions.AuthUser();
         var authPasswordOption = CommonOptions.AuthPassword();
         var clientIdOption = CommonOptions.ClientId();
@@ -63,6 +63,7 @@ public static class StreamCommand
             authHeaderOption,
             apiKeyOption,
             apiKeyHeaderOption,
+            apiKeyLocationOption,
             authUserOption,
             authPasswordOption,
             clientIdOption,
@@ -87,6 +88,14 @@ public static class StreamCommand
             else if (!subscribe && string.IsNullOrEmpty(message) && file == null && string.IsNullOrEmpty(data))
             {
                 result.ErrorMessage = "At least one of --message, --file, or --data is required (unless using --subscribe).";
+                return;
+            }
+
+            var clientId = result.GetValueForOption(clientIdOption);
+            var clientSecret = result.GetValueForOption(clientSecretOption);
+            if (string.IsNullOrWhiteSpace(clientId) != string.IsNullOrWhiteSpace(clientSecret))
+            {
+                result.ErrorMessage = "--client-id and --client-secret must be provided together.";
             }
         });
 
@@ -105,6 +114,7 @@ public static class StreamCommand
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
             var apiKeyHeader = context.ParseResult.GetValueForOption(apiKeyHeaderOption);
+            var apiKeyLocation = context.ParseResult.GetValueForOption(apiKeyLocationOption);
             var authUser = context.ParseResult.GetValueForOption(authUserOption);
             var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
             var clientId = context.ParseResult.GetValueForOption(clientIdOption);
@@ -112,31 +122,28 @@ public static class StreamCommand
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
             var a2aVersion = context.ParseResult.GetValueForOption(a2aVersionOption) ?? "1.0";
             var saveArtifacts = context.ParseResult.GetValueForOption(saveArtifactsOption);
-            var output = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<string>>().First(o => o.Name == "output"))!;
-            var pretty = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "pretty"));
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
                 var resolvedTarget = await CommonOptions.ResolveTargetAsync(target, context.GetCancellationToken());
-                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                using var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
                     resolvedTarget.RequestUrl,
                     authToken: authToken,
                     authHeader: authHeader,
                     apiKey: apiKey,
                     apiKeyHeader: apiKeyHeader,
+                    apiKeyLocation: apiKeyLocation,
                     authUser: authUser,
                     authPassword: authPassword,
-                    tenant: tenant);
+                    clientId: clientId,
+                    clientSecret: clientSecret,
+                    tenant: tenant,
+                    agentCardUrl: resolvedTarget.AgentCardUrl,
+                    cancellationToken: context.GetCancellationToken());
 
-                var formatter = new ConsoleFormatter(output, pretty);
-                var renderer = new ProgressRenderer(output);
+                var formatter = new ConsoleFormatter(globalOptions.Output, globalOptions.Pretty);
+                var renderer = new ProgressRenderer(globalOptions.Output);
                 var ct = context.GetCancellationToken();
 
                 var client = await CommonOptions.CreateClientAsync(
@@ -154,27 +161,11 @@ public static class StreamCommand
                 }
                 else
                 {
-                    // Build message parts
-                    var parts = new List<Part>();
-                    if (!string.IsNullOrEmpty(message))
-                        parts.Add(new Part { Text = message });
-                    if (file != null)
-                    {
-                        var bytes = File.ReadAllBytes(file.FullName);
-                        parts.Add(new Part { Raw = bytes, Filename = file.Name });
-                    }
-                    if (!string.IsNullOrEmpty(data))
-                    {
-                        var jsonElement = JsonSerializer.SerializeToElement(
-                            JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(data));
-                        parts.Add(new Part { Data = jsonElement });
-                    }
-
                     var msg = new Message
                     {
                         Role = Role.User,
                         MessageId = Guid.NewGuid().ToString(),
-                        Parts = parts,
+                        Parts = SendCommand.BuildParts(message, file, data),
                         TaskId = taskId,
                         ContextId = contextId
                     };
@@ -211,7 +202,7 @@ public static class StreamCommand
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });

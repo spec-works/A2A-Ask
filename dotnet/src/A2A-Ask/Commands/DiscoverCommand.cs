@@ -47,24 +47,18 @@ public static class DiscoverCommand
             var authToken = context.ParseResult.GetValueForOption(authTokenOption);
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
-            var output = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<string>>().First(o => o.Name == "output"))!;
-            var pretty = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "pretty"));
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
                 var resolvedTarget = await CommonOptions.ResolveTargetAsync(target, context.GetCancellationToken());
-                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                using var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
                     resolvedTarget.RequestUrl,
                     authToken: authToken,
                     authHeader: authHeader,
-                    tenant: tenant);
+                    tenant: tenant,
+                    agentCardUrl: resolvedTarget.AgentCardUrl,
+                    cancellationToken: context.GetCancellationToken());
 
                 var useWellKnown = string.IsNullOrWhiteSpace(resolvedTarget.AgentCardUrl)
                     && wellKnown
@@ -81,8 +75,8 @@ public static class DiscoverCommand
                         var extCard = await client.GetExtendedAgentCardAsync(
                             new GetExtendedAgentCardRequest { Tenant = tenant },
                             context.GetCancellationToken());
-                        var formatter = new ConsoleFormatter(output, pretty);
-                        formatter.WriteAgentCard(extCard, verbose);
+                        var formatter = new ConsoleFormatter(globalOptions.Output, globalOptions.Pretty);
+                        formatter.WriteAgentCard(extCard, globalOptions.Verbose);
                         return;
                     }
 
@@ -106,13 +100,13 @@ public static class DiscoverCommand
                     }
 
                     var card = await resolver.GetAgentCardAsync();
-                    var fmtr = new ConsoleFormatter(output, pretty);
-                    fmtr.WriteAgentCard(card, verbose);
+                    var fmtr = new ConsoleFormatter(globalOptions.Output, globalOptions.Pretty);
+                    fmtr.WriteAgentCard(card, globalOptions.Verbose);
                     return;
                 }
                 catch (A2AException ex)
                 {
-                    if (verbose)
+                    if (globalOptions.Verbose)
                         Console.Error.WriteLine($"SDK parse failed ({ex.Message}). Trying raw JSON fallback...");
                     // Fall through to raw JSON fallback
                 }
@@ -123,14 +117,14 @@ public static class DiscoverCommand
                         ? $"{resolvedTarget.RequestUrl.TrimEnd('/')}/.well-known/agent-card.json"
                         : resolvedTarget.RequestUrl;
 
-                var response = await httpClient.GetAsync(cardUrl);
+                using var response = await httpClient.GetAsync(cardUrl, context.GetCancellationToken());
                 response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
+                var json = await response.Content.ReadAsStringAsync(context.GetCancellationToken());
                 var doc = JsonDocument.Parse(json);
 
-                if (output == "json")
+                if (globalOptions.Output == "json")
                 {
-                    var opts = new JsonSerializerOptions { WriteIndented = pretty };
+                    var opts = new JsonSerializerOptions { WriteIndented = globalOptions.Pretty };
                     Console.WriteLine(JsonSerializer.Serialize(doc.RootElement, opts));
                 }
                 else
@@ -177,7 +171,7 @@ public static class DiscoverCommand
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });

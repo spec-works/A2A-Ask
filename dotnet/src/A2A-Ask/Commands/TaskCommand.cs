@@ -26,6 +26,7 @@ public static class TaskCommand
         var authHeaderOption = CommonOptions.AuthHeader();
         var apiKeyOption = CommonOptions.ApiKey();
         var apiKeyHeaderOption = CommonOptions.ApiKeyHeader();
+        var apiKeyLocationOption = CommonOptions.ApiKeyLocation();
         var authUserOption = CommonOptions.AuthUser();
         var authPasswordOption = CommonOptions.AuthPassword();
         var tenantOption = CommonOptions.Tenant();
@@ -34,7 +35,7 @@ public static class TaskCommand
         var command = new Command("get", "Get the current state of a task")
         {
             urlArgument, taskIdOption, historyLengthOption,
-            authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption,
+            authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption, apiKeyLocationOption,
             authUserOption, authPasswordOption, tenantOption, a2aVersionOption
         };
 
@@ -48,25 +49,25 @@ public static class TaskCommand
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
             var apiKeyHeader = context.ParseResult.GetValueForOption(apiKeyHeaderOption);
+            var apiKeyLocation = context.ParseResult.GetValueForOption(apiKeyLocationOption);
             var authUser = context.ParseResult.GetValueForOption(authUserOption);
             var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
-            var output = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<string>>().First(o => o.Name == "output"))!;
-            var pretty = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "pretty"));
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
-                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
-                    url, authToken: authToken, authHeader: authHeader,
-                    apiKey: apiKey, apiKeyHeader: apiKeyHeader,
-                    authUser: authUser, authPassword: authPassword, tenant: tenant);
+                using var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                    url,
+                    authToken: authToken,
+                    authHeader: authHeader,
+                    apiKey: apiKey,
+                    apiKeyHeader: apiKeyHeader,
+                    apiKeyLocation: apiKeyLocation,
+                    authUser: authUser,
+                    authPassword: authPassword,
+                    tenant: tenant,
+                    cancellationToken: context.GetCancellationToken());
 
                 var ct = context.GetCancellationToken();
                 var client = await CommonOptions.CreateClientAsync(
@@ -80,12 +81,12 @@ public static class TaskCommand
                     request.HistoryLength = historyLength.Value;
 
                 var task = await client.GetTaskAsync(request, ct);
-                var formatter = new ConsoleFormatter(output, pretty);
-                formatter.WriteTask(task, verbose);
+                var formatter = new ConsoleFormatter(globalOptions.Output, globalOptions.Pretty);
+                formatter.WriteTask(task, globalOptions.Verbose);
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });
@@ -104,6 +105,7 @@ public static class TaskCommand
         var authHeaderOption = CommonOptions.AuthHeader();
         var apiKeyOption = CommonOptions.ApiKey();
         var apiKeyHeaderOption = CommonOptions.ApiKeyHeader();
+        var apiKeyLocationOption = CommonOptions.ApiKeyLocation();
         var authUserOption = CommonOptions.AuthUser();
         var authPasswordOption = CommonOptions.AuthPassword();
         var tenantOption = CommonOptions.Tenant();
@@ -112,8 +114,8 @@ public static class TaskCommand
         var command = new Command("list", "List tasks with optional filtering")
         {
             urlArgument, contextIdOption, statusOption, pageSizeOption, pageTokenOption,
-            authTokenOption, authHeaderOption, apiKeyOption,
-            apiKeyHeaderOption, authUserOption, authPasswordOption, tenantOption, a2aVersionOption
+            authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption, apiKeyLocationOption,
+            authUserOption, authPasswordOption, tenantOption, a2aVersionOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
@@ -128,25 +130,25 @@ public static class TaskCommand
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
             var apiKeyHeader = context.ParseResult.GetValueForOption(apiKeyHeaderOption);
+            var apiKeyLocation = context.ParseResult.GetValueForOption(apiKeyLocationOption);
             var authUser = context.ParseResult.GetValueForOption(authUserOption);
             var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
-            var output = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<string>>().First(o => o.Name == "output"))!;
-            var pretty = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "pretty"));
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
-                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
-                    url, authToken: authToken, authHeader: authHeader,
-                    apiKey: apiKey, apiKeyHeader: apiKeyHeader,
-                    authUser: authUser, authPassword: authPassword, tenant: tenant);
+                using var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                    url,
+                    authToken: authToken,
+                    authHeader: authHeader,
+                    apiKey: apiKey,
+                    apiKeyHeader: apiKeyHeader,
+                    apiKeyLocation: apiKeyLocation,
+                    authUser: authUser,
+                    authPassword: authPassword,
+                    tenant: tenant,
+                    cancellationToken: context.GetCancellationToken());
 
                 var ct = context.GetCancellationToken();
                 var client = await CommonOptions.CreateClientAsync(
@@ -158,18 +160,27 @@ public static class TaskCommand
                 var request = new ListTasksRequest();
                 if (!string.IsNullOrEmpty(contextId))
                     request.ContextId = contextId;
+                if (!string.IsNullOrEmpty(status))
+                {
+                    if (!Enum.TryParse<TaskState>(status, true, out var parsedStatus))
+                    {
+                        throw new InvalidOperationException($"Invalid task status '{status}'.");
+                    }
+
+                    request.Status = parsedStatus;
+                }
                 if (pageSize.HasValue)
                     request.PageSize = pageSize.Value;
                 if (!string.IsNullOrEmpty(pageToken))
                     request.PageToken = pageToken;
 
                 var result = await client.ListTasksAsync(request, ct);
-                var formatter = new ConsoleFormatter(output, pretty);
+                var formatter = new ConsoleFormatter(globalOptions.Output, globalOptions.Pretty);
                 formatter.WriteJson(result);
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });
@@ -185,6 +196,7 @@ public static class TaskCommand
         var authHeaderOption = CommonOptions.AuthHeader();
         var apiKeyOption = CommonOptions.ApiKey();
         var apiKeyHeaderOption = CommonOptions.ApiKeyHeader();
+        var apiKeyLocationOption = CommonOptions.ApiKeyLocation();
         var authUserOption = CommonOptions.AuthUser();
         var authPasswordOption = CommonOptions.AuthPassword();
         var tenantOption = CommonOptions.Tenant();
@@ -193,7 +205,7 @@ public static class TaskCommand
         var command = new Command("cancel", "Cancel a running task")
         {
             urlArgument, taskIdOption,
-            authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption,
+            authTokenOption, authHeaderOption, apiKeyOption, apiKeyHeaderOption, apiKeyLocationOption,
             authUserOption, authPasswordOption, tenantOption, a2aVersionOption
         };
 
@@ -205,26 +217,26 @@ public static class TaskCommand
             var authHeader = context.ParseResult.GetValueForOption(authHeaderOption);
             var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
             var apiKeyHeader = context.ParseResult.GetValueForOption(apiKeyHeaderOption);
+            var apiKeyLocation = context.ParseResult.GetValueForOption(apiKeyLocationOption);
             var authUser = context.ParseResult.GetValueForOption(authUserOption);
             var authPassword = context.ParseResult.GetValueForOption(authPasswordOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
             var a2aVersion = context.ParseResult.GetValueForOption(a2aVersionOption) ?? "1.0";
-            var output = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<string>>().First(o => o.Name == "output"))!;
-            var pretty = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "pretty"));
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
-                var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
-                    url, authToken: authToken, authHeader: authHeader,
-                    apiKey: apiKey, apiKeyHeader: apiKeyHeader,
-                    authUser: authUser, authPassword: authPassword, tenant: tenant);
+                using var httpClient = await AuthConfigurator.CreateHttpClientWithStoredTokenAsync(
+                    url,
+                    authToken: authToken,
+                    authHeader: authHeader,
+                    apiKey: apiKey,
+                    apiKeyHeader: apiKeyHeader,
+                    apiKeyLocation: apiKeyLocation,
+                    authUser: authUser,
+                    authPassword: authPassword,
+                    tenant: tenant,
+                    cancellationToken: context.GetCancellationToken());
 
                 var ct = context.GetCancellationToken();
                 var client = await CommonOptions.CreateClientAsync(
@@ -235,12 +247,12 @@ public static class TaskCommand
 
                 var request = new CancelTaskRequest { Id = taskId };
                 var task = await client.CancelTaskAsync(request, ct);
-                var formatter = new ConsoleFormatter(output, pretty);
-                formatter.WriteTask(task, verbose);
+                var formatter = new ConsoleFormatter(globalOptions.Output, globalOptions.Pretty);
+                formatter.WriteTask(task, globalOptions.Verbose);
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });

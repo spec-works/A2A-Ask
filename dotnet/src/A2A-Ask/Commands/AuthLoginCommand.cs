@@ -41,9 +41,7 @@ public static class AuthCommand
             var clientId = context.ParseResult.GetValueForOption(clientIdOption);
             var clientSecret = context.ParseResult.GetValueForOption(clientSecretOption);
             var tenant = context.ParseResult.GetValueForOption(tenantOption);
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
@@ -132,7 +130,7 @@ public static class AuthCommand
                     {
                         Console.WriteLine($"Using OAuth2 device code flow via '{schemeName}'...");
                         Console.WriteLine();
-                        var flow = new DeviceCodeFlow(scheme);
+                        using var flow = new DeviceCodeFlow(scheme);
                         tokenResult = await flow.AuthenticateAsync(
                             requiredScopes,
                             effectiveClientId,
@@ -206,7 +204,7 @@ public static class AuthCommand
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });
@@ -399,7 +397,7 @@ public static class AuthCommand
         string? discoveredIssuer = null;
         if (!string.IsNullOrWhiteSpace(scheme.OAuth2MetadataUrl))
         {
-            var flow = new DeviceCodeFlow(scheme);
+            using var flow = new DeviceCodeFlow(scheme);
             var discovery = await flow.DiscoverEndpointsAsync(scheme.OAuth2MetadataUrl, cancellationToken);
             discoveredIssuer = discovery?.Issuer;
         }

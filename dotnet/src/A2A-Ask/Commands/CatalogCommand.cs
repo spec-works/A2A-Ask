@@ -42,24 +42,16 @@ public static class CatalogCommand
         {
             var target = context.ParseResult.GetValueForArgument(targetArgument);
             var filter = context.ParseResult.GetValueForOption(filterOption);
-            var output = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<string>>().First(o => o.Name == "output"))!;
-            var pretty = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "pretty"));
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
-                var formatter = new ConsoleFormatter(output, pretty);
+                var formatter = new ConsoleFormatter(globalOptions.Output, globalOptions.Pretty);
                 var registry = new CatalogRegistry();
 
                 if (string.IsNullOrWhiteSpace(target))
                 {
-                    WriteRegisteredCatalogs(formatter, output, ApplyCatalogFilter(registry.LoadAliases(), filter));
+                    WriteRegisteredCatalogs(formatter, globalOptions.Output, ApplyCatalogFilter(registry.LoadAliases(), filter));
                     return;
                 }
 
@@ -70,7 +62,7 @@ public static class CatalogCommand
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });
@@ -90,15 +82,7 @@ public static class CatalogCommand
         command.SetHandler(async (InvocationContext context) =>
         {
             var target = context.ParseResult.GetValueForArgument(targetArgument);
-            var output = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<string>>().First(o => o.Name == "output"))!;
-            var pretty = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "pretty"));
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
@@ -119,12 +103,12 @@ public static class CatalogCommand
                     _ => throw new InvalidOperationException("Unsupported catalog target.")
                 };
 
-                var formatter = new ConsoleFormatter(output, pretty);
+                var formatter = new ConsoleFormatter(globalOptions.Output, globalOptions.Pretty);
                 formatter.WriteCatalogAgent(agent);
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });
@@ -150,9 +134,7 @@ public static class CatalogCommand
             var alias = context.ParseResult.GetValueForArgument(aliasArgument);
             var url = context.ParseResult.GetValueForArgument(urlArgument);
             var noValidate = context.ParseResult.GetValueForOption(noValidateOption);
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
@@ -169,7 +151,7 @@ public static class CatalogCommand
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });
@@ -189,9 +171,7 @@ public static class CatalogCommand
         command.SetHandler((InvocationContext context) =>
         {
             var alias = context.ParseResult.GetValueForArgument(aliasArgument);
-            var verbose = context.ParseResult.GetValueForOption(
-                context.ParseResult.RootCommandResult.Command.Options
-                    .OfType<Option<bool>>().First(o => o.Name == "verbose"));
+            var globalOptions = context.GetGlobalOptions();
 
             try
             {
@@ -205,7 +185,7 @@ public static class CatalogCommand
             }
             catch (Exception ex)
             {
-                ConsoleFormatter.WriteError(ex, verbose);
+                ConsoleFormatter.WriteError(ex, globalOptions.Verbose);
                 context.ExitCode = 1;
             }
         });
@@ -344,37 +324,11 @@ public static class CatalogCommand
         IReadOnlyList<QualifiedCatalogMatch> agents,
         string agentName)
     {
-        var exactIdentifierMatches = agents
-            .Where(agent => string.Equals(agent.Agent.EntryId, agentName, StringComparison.Ordinal))
-            .ToList();
-        if (exactIdentifierMatches.Count > 0)
-        {
-            return exactIdentifierMatches;
-        }
-
-        var exactDisplayNameMatches = agents
-            .Where(agent => string.Equals(agent.Agent.DisplayName, agentName, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        if (exactDisplayNameMatches.Count > 0)
-        {
-            return exactDisplayNameMatches;
-        }
-
-        var exactTagMatches = agents
-            .Where(agent => agent.Agent.Tags.Any(tag => string.Equals(tag, agentName, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-        if (exactTagMatches.Count > 0)
-        {
-            return exactTagMatches;
-        }
-
+        var matches = CatalogInputResolver.FindMatchingAgents(
+            agents.Select(agent => agent.Agent).ToList(),
+            agentName);
         return agents
-            .Where(agent =>
-                agent.Agent.EntryId.Contains(agentName, StringComparison.OrdinalIgnoreCase)
-                || agent.Agent.DisplayName.Contains(agentName, StringComparison.OrdinalIgnoreCase)
-                || (!string.IsNullOrWhiteSpace(agent.Agent.Description)
-                    && agent.Agent.Description.Contains(agentName, StringComparison.OrdinalIgnoreCase))
-                || agent.Agent.Tags.Any(tag => tag.Contains(agentName, StringComparison.OrdinalIgnoreCase)))
+            .Where(agent => matches.Contains(agent.Agent))
             .ToList();
     }
 

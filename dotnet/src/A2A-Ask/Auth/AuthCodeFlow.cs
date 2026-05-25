@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using A2A;
@@ -33,13 +34,16 @@ public static class AuthCodeFlow
 
         clientId ??= "a2a-ask-cli";
 
+        var callbackPort = SystemBrowser.FindAvailablePort(29080, 29089);
+        var redirectUri = $"http://127.0.0.1:{callbackPort}/callback";
+
         var options = new OidcClientOptions
         {
             Authority = new Uri(authCodeFlow.AuthorizationUrl).GetLeftPart(UriPartial.Authority),
             ClientId = clientId,
             Scope = string.Join(" ", allScopes),
-            RedirectUri = "http://127.0.0.1:29080/callback",
-            Browser = new SystemBrowser(29080),
+            RedirectUri = redirectUri,
+            Browser = new SystemBrowser(callbackPort),
             Policy = new Policy { Discovery = new Duende.IdentityModel.Client.DiscoveryPolicy { RequireHttps = false } }
         };
 
@@ -84,11 +88,41 @@ internal class SystemBrowser : IBrowser
 
     public SystemBrowser(int port) => _port = port;
 
+    public static int FindAvailablePort(int startPort, int endPort)
+    {
+        for (var port = startPort; port <= endPort; port++)
+        {
+            try
+            {
+                using var listener = new TcpListener(IPAddress.Loopback, port);
+                listener.Start();
+                return port;
+            }
+            catch (SocketException)
+            {
+            }
+        }
+
+        throw new InvalidOperationException($"No available callback port was found in the range {startPort}-{endPort}.");
+    }
+
     public async Task<BrowserResult> InvokeAsync(BrowserOptions options, CancellationToken cancellationToken = default)
     {
         using var listener = new HttpListener();
         listener.Prefixes.Add($"http://127.0.0.1:{_port}/");
-        listener.Start();
+
+        try
+        {
+            listener.Start();
+        }
+        catch (HttpListenerException ex)
+        {
+            return new BrowserResult
+            {
+                ResultType = BrowserResultType.UnknownError,
+                Error = $"Failed to listen on callback port {_port}: {ex.Message}"
+            };
+        }
 
         OpenBrowser(options.StartUrl);
 

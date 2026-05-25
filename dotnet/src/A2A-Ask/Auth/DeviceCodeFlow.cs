@@ -8,15 +8,17 @@ namespace A2AAsk.Auth;
 /// using Duende.IdentityModel for standards-compliant token requests.
 /// Supports OIDC/OAuth2 metadata discovery for endpoint resolution.
 /// </summary>
-public class DeviceCodeFlow
+public class DeviceCodeFlow : IDisposable
 {
     private readonly OAuth2SecurityScheme _scheme;
     private readonly HttpClient _httpClient;
+    private readonly bool _ownsHttpClient;
 
     public DeviceCodeFlow(OAuth2SecurityScheme scheme, HttpClient? httpClient = null)
     {
         _scheme = scheme ?? throw new ArgumentNullException(nameof(scheme));
         _httpClient = httpClient ?? new HttpClient();
+        _ownsHttpClient = httpClient == null;
     }
 
     public async Task<TokenResult?> AuthenticateAsync(
@@ -173,7 +175,8 @@ public class DeviceCodeFlow
         if (string.IsNullOrEmpty(expiredToken.RefreshToken) || string.IsNullOrEmpty(expiredToken.TokenUrl))
             return null;
 
-        var client = httpClient ?? new HttpClient();
+        using var ownedHttpClient = httpClient is null ? new HttpClient() : null;
+        var client = httpClient ?? ownedHttpClient!;
         var refreshRequest = new RefreshTokenRequest
         {
             Address = expiredToken.TokenUrl,
@@ -217,6 +220,14 @@ public class DeviceCodeFlow
         return disco.IsError ? null : disco;
     }
 
+    public void Dispose()
+    {
+        if (_ownsHttpClient)
+        {
+            _httpClient.Dispose();
+        }
+    }
+
     private static void AddResourceParameter(Parameters parameters, string? resource)
     {
         if (!string.IsNullOrWhiteSpace(resource))
@@ -248,7 +259,8 @@ public static class ClientCredentialsFlow
         HttpClient? httpClient = null,
         CancellationToken cancellationToken = default)
     {
-        var client = httpClient ?? new HttpClient();
+        using var ownedHttpClient = httpClient is null ? new HttpClient() : null;
+        var client = httpClient ?? ownedHttpClient!;
         string? tokenUrl = null;
 
         if (scheme.Flows?.ClientCredentials != null)

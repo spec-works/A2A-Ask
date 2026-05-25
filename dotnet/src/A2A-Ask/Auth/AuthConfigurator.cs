@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text;
+using A2A;
 
 namespace A2AAsk.Auth;
 
@@ -20,7 +21,13 @@ public static class AuthConfigurator
         string? authUser = null,
         string? authPassword = null)
     {
-        var client = new HttpClient();
+        var location = apiKeyLocation?.ToLowerInvariant() ?? "header";
+        var handler = !string.IsNullOrEmpty(apiKey) && string.Equals(location, "query", StringComparison.OrdinalIgnoreCase)
+            ? new ApiKeyQueryParameterHandler(apiKeyHeader ?? "api_key", apiKey)
+            : null;
+        var client = handler == null
+            ? new HttpClient()
+            : new HttpClient(handler, disposeHandler: true);
 
         if (!string.IsNullOrEmpty(authToken))
         {
@@ -37,7 +44,6 @@ public static class AuthConfigurator
 
         if (!string.IsNullOrEmpty(apiKey))
         {
-            var location = apiKeyLocation?.ToLowerInvariant() ?? "header";
             switch (location)
             {
                 case "cookie":
@@ -45,13 +51,8 @@ public static class AuthConfigurator
                     client.DefaultRequestHeaders.Add("Cookie", $"{cookieName}={apiKey}");
                     break;
                 case "query":
-                    // Query string API keys are handled at request time, not here.
-                    // Store as a custom header that callers can read.
-                    // For now, set it as a default header — URL rewriting is the caller's responsibility.
-                    Console.Error.WriteLine($"Note: API key will be sent as query parameter '{apiKeyHeader ?? "api_key"}'.");
-                    Console.Error.WriteLine("Query-string API keys require URL modification per-request.");
                     break;
-                default: // "header"
+                default:
                     var headerName = apiKeyHeader ?? "X-API-Key";
                     client.DefaultRequestHeaders.Add(headerName, apiKey);
                     break;
@@ -81,18 +82,44 @@ public static class AuthConfigurator
         string? authHeader = null,
         string? apiKey = null,
         string? apiKeyHeader = null,
+        string? apiKeyLocation = null,
         string? authUser = null,
         string? authPassword = null,
-        string? tenant = null)
+        string? clientId = null,
+        string? clientSecret = null,
+        string? tenant = null,
+        string? agentCardUrl = null,
+        CancellationToken cancellationToken = default)
     {
-        // Explicit auth always wins
+        if (string.IsNullOrWhiteSpace(clientId) != string.IsNullOrWhiteSpace(clientSecret))
+        {
+            throw new InvalidOperationException("--client-id and --client-secret must be provided together.");
+        }
+
         if (!string.IsNullOrEmpty(authToken) || !string.IsNullOrEmpty(apiKey)
             || !string.IsNullOrEmpty(authHeader) || !string.IsNullOrEmpty(authUser))
         {
-            return CreateHttpClient(authToken, authHeader, apiKey, apiKeyHeader, authUser, authPassword);
+            return CreateHttpClient(
+                authToken: authToken,
+                authHeader: authHeader,
+                apiKey: apiKey,
+                apiKeyHeader: apiKeyHeader,
+                apiKeyLocation: apiKeyLocation,
+                authUser: authUser,
+                authPassword: authPassword);
         }
 
-        // Try loading stored token
+        if (!string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(clientSecret))
+        {
+            var token = await AuthenticateClientCredentialsAsync(
+                agentUrl,
+                agentCardUrl,
+                clientId,
+                clientSecret,
+                cancellationToken);
+            return CreateHttpClient(authToken: token.AccessToken);
+        }
+
         var store = new TokenStore();
         var storageKey = TokenStore.BuildStorageKey(agentUrl, tenant);
         var storedToken = await store.LoadTokenAsync(storageKey);
@@ -103,10 +130,9 @@ public static class AuthConfigurator
                 return CreateHttpClient(authToken: storedToken.AccessToken);
             }
 
-            // Token expired — try refresh
             if (!string.IsNullOrEmpty(storedToken.RefreshToken))
             {
-                var refreshed = await DeviceCodeFlow.RefreshTokenAsync(storedToken);
+                var refreshed = await DeviceCodeFlow.RefreshTokenAsync(storedToken, cancellationToken: cancellationToken);
                 if (refreshed != null)
                 {
                     await store.SaveTokenAsync(storageKey, refreshed);
@@ -122,5 +148,85 @@ public static class AuthConfigurator
         }
 
         return CreateHttpClient();
+    }
+
+    private static async Task<TokenResult> AuthenticateClientCredentialsAsync(
+        string agentUrl,
+        string? agentCardUrl,
+        string clientId,
+        string clientSecret,
+        CancellationToken cancellationToken)
+    {
+        using var httpClient = new HttpClient();
+        var card = await LoadAgentCardAsync(agentUrl, agentCardUrl, httpClient, cancellationToken);
+        var oauth2Scheme = card.SecuritySchemes?
+            .Values
+            .Where(scheme => scheme.SchemeCase == SecuritySchemeCase.OAuth2)
+            .Select(scheme => scheme.OAuth2SecurityScheme)
+            .FirstOrDefault(scheme => scheme?.Flows != null);
+
+        if (oauth2Scheme == null)
+        {
+            throw new InvalidOperationException("No OAuth2 scheme found in agent card for client credentials.");
+        }
+
+        var token = await ClientCredentialsFlow.AuthenticateAsync(
+            oauth2Scheme,
+            clientId,
+            clientSecret,
+            httpClient: httpClient,
+            cancellationToken: cancellationToken);
+        return token ?? throw new InvalidOperationException("Client credentials authentication failed.");
+    }
+
+    private static async Task<AgentCard> LoadAgentCardAsync(
+        string agentUrl,
+        string? agentCardUrl,
+        HttpClient httpClient,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(agentCardUrl))
+        {
+            var fullUri = new Uri(agentCardUrl);
+            var baseUri = new Uri($"{fullUri.Scheme}://{fullUri.Authority}");
+            var resolver = new A2ACardResolver(baseUri, httpClient, fullUri.PathAndQuery);
+            return await resolver.GetAgentCardAsync(cancellationToken);
+        }
+
+        if (agentUrl.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            var fullUri = new Uri(agentUrl);
+            var baseUri = new Uri($"{fullUri.Scheme}://{fullUri.Authority}");
+            var resolver = new A2ACardResolver(baseUri, httpClient, fullUri.PathAndQuery);
+            return await resolver.GetAgentCardAsync(cancellationToken);
+        }
+
+        var requestUri = new Uri(agentUrl.TrimEnd('/'));
+        var wellKnownResolver = new A2ACardResolver(requestUri, httpClient, "/.well-known/agent-card.json");
+        return await wellKnownResolver.GetAgentCardAsync(cancellationToken);
+    }
+
+    private sealed class ApiKeyQueryParameterHandler(string parameterName, string parameterValue) : DelegatingHandler(new HttpClientHandler())
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri != null)
+            {
+                request.RequestUri = AppendQueryParameter(request.RequestUri, parameterName, parameterValue);
+            }
+
+            return base.SendAsync(request, cancellationToken);
+        }
+
+        private static Uri AppendQueryParameter(Uri uri, string name, string value)
+        {
+            var builder = new UriBuilder(uri);
+            var query = builder.Query.TrimStart('?');
+            var parameter = $"{Uri.EscapeDataString(name)}={Uri.EscapeDataString(value)}";
+            builder.Query = string.IsNullOrEmpty(query)
+                ? parameter
+                : $"{query}&{parameter}";
+            return builder.Uri;
+        }
     }
 }

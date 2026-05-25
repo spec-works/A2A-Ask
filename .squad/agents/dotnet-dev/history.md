@@ -8,6 +8,12 @@ Performed a full read of all .cs source files under `dotnet/src/A2A-Ask/`. No co
 
 ## Learnings
 
+- Fixed HttpClient lifetime issues by disposing command-scoped clients with `using` and making `DeviceCodeFlow` own/dispose internally-created clients.
+- Wired `--client-id` and `--client-secret` through `AuthConfigurator.CreateHttpClientWithStoredTokenAsync` so `send` and `stream` can fetch client_credentials tokens inline from the resolved agent card.
+- Removed the unsupported `--binding` option, centralized global option access in `Commands/GlobalOptions.cs`, and consolidated cross-catalog agent matching through `CatalogInputResolver.FindMatchingAgents`.
+- Reused `SendCommand.BuildParts()` from `StreamCommand`, fixed `--data` to preserve any JSON shape, added real query-string API key support via an HTTP handler, and added callback port fallback for auth code login.
+- Verified the CLI with `dotnet build` in `dotnet/src/A2A-Ask/` and `dotnet test ..\A2A-Ask.sln` from `dotnet/tests/`.
+
 ### Project Layout
 - Source root: `dotnet/src/A2A-Ask/`
 - Commands: `Commands/` — one file per command (static class, `Create()` factory)

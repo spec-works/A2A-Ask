@@ -7,25 +7,9 @@ var rootCommand = new RootCommand("A2A-Ask: Interact with A2A (Agent-to-Agent) p
 };
 
 // Global options
-var outputOption = new Option<string>(
-    name: "--output",
-    description: "Output format",
-    getDefaultValue: () => "json");
-outputOption.AddCompletions("json", "text");
-
-var prettyOption = new Option<bool>(
-    name: "--pretty",
-    description: "Pretty-print JSON output",
-    getDefaultValue: () => false);
-
-var verboseOption = new Option<bool>(
-    aliases: ["--verbose", "-v"],
-    description: "Enable verbose/debug output",
-    getDefaultValue: () => false);
-
-rootCommand.AddGlobalOption(outputOption);
-rootCommand.AddGlobalOption(prettyOption);
-rootCommand.AddGlobalOption(verboseOption);
+rootCommand.AddGlobalOption(GlobalOptions.Output);
+rootCommand.AddGlobalOption(GlobalOptions.Pretty);
+rootCommand.AddGlobalOption(GlobalOptions.Verbose);
 
 // Register commands
 rootCommand.AddCommand(DiscoverCommand.Create());
