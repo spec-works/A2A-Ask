@@ -8,7 +8,7 @@ Built with the official [a2a-dotnet SDK](https://github.com/a2aproject/a2a-dotne
 
 ## Quick Start
 
-```bash
+```powershell
 # Install
 dotnet tool install --global SpecWorks.A2A-Ask
 
@@ -32,8 +32,11 @@ a2a-ask stream https://agent.example.com --message "Generate a report" --output 
 | `a2a-ask send <url>` | Send a message to an agent |
 | `a2a-ask stream <url>` | Stream a response or subscribe to task events |
 | `a2a-ask task get <url>` | Get current task status (for polling) |
+| `a2a-ask task list <url>` | List tasks on an agent |
 | `a2a-ask task cancel <url>` | Cancel a running task |
 | `a2a-ask auth login <url>` | Interactive OAuth2 authentication |
+| `a2a-ask auth logout <url>` | Clear stored authentication token |
+| `a2a-ask auth status <url>` | Check authentication status |
 | `a2a-ask auth register-client --client-id <id> --issuer <url>` | Persist an OAuth2 client registration |
 | `a2a-ask auth list-clients` | List persisted OAuth2 client registrations |
 | `a2a-ask auth remove-client --issuer <url>` | Remove a persisted OAuth2 client registration |
@@ -49,7 +52,7 @@ A2A-Ask can browse AI catalogs and resolve A2A agents from catalog targets.
 | `@agentName@catalogAlias` | Resolve one agent from a specific catalog host, origin, or catalog URL. |
 | `@@catalogAlias` | Browse a catalog by host, origin, or catalog URL. |
 
-```bash
+```powershell
 a2a-ask catalog list @@catalog.example.com
 a2a-ask catalog show @weather@catalog.example.com
 a2a-ask send @weather@catalog.example.com --message "Hello"
@@ -61,7 +64,7 @@ Use `catalog list` to browse catalog entries and `catalog show` to resolve one a
 
 A2A-Ask supports multiple authentication methods based on the agent's security requirements:
 
-```bash
+```powershell
 # Bearer token
 a2a-ask send <url> --auth-token "eyJhbGciOi..." --message "Hello"
 
@@ -82,7 +85,7 @@ a2a-ask send <url> --auth-header "X-Custom=value" --message "Hello"
 
 When an agent needs more information, it enters the `InputRequired` state. Continue the conversation using `--task-id`:
 
-```bash
+```powershell
 # First message
 a2a-ask send <url> --message "Plan a trip to Japan" --output text
 # → ⏸ InputRequired: "What dates are you considering?"
@@ -95,7 +98,7 @@ a2a-ask send <url> --task-id abc-123 --message "March 15-25" --output text
 
 For agents that support streaming, get real-time progress and artifact delivery:
 
-```bash
+```powershell
 a2a-ask stream <url> --message "Analyze this data" --output text
 # 📤 Task started: abc-123 [Submitted]
 # ⏳ [Working] Analyzing data...
@@ -105,16 +108,16 @@ a2a-ask stream <url> --message "Analyze this data" --output text
 
 ## Agent Skill
 
-A2A-Ask includes a comprehensive [SKILL.md](skills/a2a-ask-cli/SKILL.md) for AI agent integration. Install it in your project to give AI assistants the ability to interact with any A2A agent:
+A2A-Ask includes a comprehensive [SKILL.md](skill/SKILL.md) for AI agent integration. Install it in your project to give AI assistants the ability to interact with any A2A agent:
 
-```bash
+```powershell
 # GitHub Copilot CLI
 mkdir -p .github/skills/a2a-ask-cli
-cp -r skills/a2a-ask-cli/* .github/skills/a2a-ask-cli/
+cp -r skill/SKILL.md .github/skills/a2a-ask-cli/
 
 # Claude Code
 mkdir -p .claude/skills/a2a-ask-cli
-cp -r skills/a2a-ask-cli/* .claude/skills/a2a-ask-cli/
+cp -r skill/SKILL.md .claude/skills/a2a-ask-cli/
 ```
 
 ## Requirements
@@ -124,7 +127,7 @@ cp -r skills/a2a-ask-cli/* .claude/skills/a2a-ask-cli/
 
 ## Building from Source
 
-```bash
+```powershell
 cd dotnet
 dotnet build
 dotnet run --project src/A2A-Ask -- --help
