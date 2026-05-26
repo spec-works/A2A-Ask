@@ -230,6 +230,135 @@ a2a-ask catalog show <target>
 
 A bare name first checks registered catalog aliases, then searches all registered catalogs in parallel for a matching agent. Use `agent@catalog` when you want to resolve a specific agent from a specific registered catalog alias.
 
+### `a2a-ask catalog install <target>`
+
+Install a catalog agent as a Copilot CLI custom agent.
+
+```powershell
+a2a-ask catalog install <target> [options]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `<target>` | `agent@catalog` reference or direct catalog URL |
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name <name>` | Override the generated Copilot agent name | card name, kebab-cased |
+| `--overwrite` | Replace an existing bridge file | `false` |
+| `--dry-run` | Print the generated bridge without writing it | `false` |
+| `--skip-auth-check` | Skip the authentication pre-flight warning | `false` |
+| `--output <json\|text>` | Output format for `--dry-run` results | `json` |
+| `--pretty` | Pretty-print JSON when combined with `--dry-run` | `false` |
+| `-v, --verbose` | Verbose output | `false` |
+
+Installs always target `~/.copilot/agents/<name>.md`. The generated bridge includes `remote-agent` frontmatter with the source catalog URL, entry id, card URL, card ETag, card hash, and install timestamp.
+
+If the agent card declares security schemes, the command warns before writing unless you pass `--skip-auth-check`. Existing bridge files are never replaced unless `--overwrite` is present, and reserved names such as `explore`, `task`, `code-review`, `general-purpose`, `research`, and `Squad` are rejected.
+
+**Examples:**
+
+```powershell
+# Install from a registered catalog alias
+a2a-ask catalog install weather@myorg
+
+# Install from a direct catalog URL and override the bridge name
+a2a-ask catalog install "https://example.com/.well-known/ai-catalog.json" --name weather-bridge
+
+# Preview the generated bridge as text without writing it
+a2a-ask catalog install weather@myorg --dry-run --output text
+
+# Preview the generated bridge as JSON
+a2a-ask catalog install weather@myorg --dry-run --output json --pretty
+```
+
+### `a2a-ask catalog uninstall <name>`
+
+Remove an installed A2A Copilot bridge.
+
+```powershell
+a2a-ask catalog uninstall <name>
+```
+
+| Argument | Description |
+|----------|-------------|
+| `<name>` | Installed Copilot bridge agent name |
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-v, --verbose` | Verbose output | `false` |
+
+The command deletes `~/.copilot/agents/<name>.md` only after validating that the file contains `remote-agent` frontmatter. It refuses to delete ordinary Copilot agent files that were not generated as A2A bridges.
+
+**Examples:**
+
+```powershell
+# Remove an installed bridge
+a2a-ask catalog uninstall weather
+
+# Show detailed errors if the target is missing or not an A2A bridge
+a2a-ask catalog uninstall weather -v
+```
+
+### `a2a-ask catalog installed`
+
+List installed A2A Copilot bridge agents.
+
+```powershell
+a2a-ask catalog installed [options]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--output <json\|text>` | Output format | `json` |
+| `--pretty` | Pretty-print JSON | `false` |
+| `-v, --verbose` | Verbose output | `false` |
+
+This command scans `~/.copilot/agents/` for Markdown files with `remote-agent` frontmatter, sorts them alphabetically, and returns the installed bridge name, catalog URL, entry id, card URL, install timestamp, and file path.
+
+**Examples:**
+
+```powershell
+# Machine-readable output
+a2a-ask catalog installed --output json --pretty
+
+# Human-readable summary
+a2a-ask catalog installed --output text
+```
+
+### `a2a-ask catalog sync [name]`
+
+Refresh installed A2A Copilot bridges from their agent cards.
+
+```powershell
+a2a-ask catalog sync [name] [options]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `[name]` | Optional installed bridge name to sync; omit to sync all installed bridges |
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--output <json\|text>` | Output format | `json` |
+| `--pretty` | Pretty-print JSON | `false` |
+| `-v, --verbose` | Verbose output and card-fetch telemetry to stderr | `false` |
+
+`catalog sync` re-fetches agent cards for installed bridges, sends `If-None-Match` when a stored ETag is available, and reports each bridge as updated, unchanged, or failed. When a card changes, the command updates only the generated region between `<!-- a2a:begin-generated -->` and `<!-- a2a:end-generated -->`, preserving any user customizations outside that section while refreshing the `remote-agent` metadata block.
+
+**Examples:**
+
+```powershell
+# Sync every installed bridge with JSON output
+a2a-ask catalog sync --output json --pretty
+
+# Sync a single bridge with text output
+a2a-ask catalog sync weather --output text
+
+# Emit verbose telemetry for card fetch operations
+a2a-ask catalog sync weather -v --output text
+```
+
 ### Catalog target syntax
 
 | Target form | Resolves as |

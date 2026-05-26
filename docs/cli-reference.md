@@ -111,6 +111,135 @@ If the catalog contains multiple A2A agents, use `@agent@catalog` to choose one 
 
 ---
 
+### `a2a-ask catalog install <target>`
+
+Install a catalog agent as a Copilot CLI custom agent.
+
+```powershell
+a2a-ask catalog install <target> [options]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `<target>` | `agent@catalog` reference or direct catalog URL |
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name <name>` | Override the generated Copilot agent name | card name, kebab-cased |
+| `--overwrite` | Replace an existing bridge file | `false` |
+| `--dry-run` | Print the generated bridge without writing it | `false` |
+| `--skip-auth-check` | Skip the authentication pre-flight warning | `false` |
+| `--output <json\|text>` | Output format for `--dry-run` results | `json` |
+| `--pretty` | Pretty-print JSON when combined with `--dry-run` | `false` |
+| `-v, --verbose` | Emit verbose diagnostics | `false` |
+
+The command fetches the agent card, generates a bridge file with `remote-agent` frontmatter, and writes it to `~/.copilot/agents/<name>.md`. Reserved names are rejected, names are kebab-cased automatically, existing files require `--overwrite`, and agent cards with security schemes emit a warning unless you pass `--skip-auth-check`.
+
+**Examples:**
+
+```powershell
+a2a-ask catalog install weather@myorg
+a2a-ask catalog install weather@myorg --dry-run --output text
+a2a-ask catalog install weather@myorg --dry-run --output json --pretty
+```
+
+---
+
+### `a2a-ask catalog uninstall <name>`
+
+Remove an installed A2A Copilot bridge.
+
+```powershell
+a2a-ask catalog uninstall <name>
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `<name>` | Installed Copilot bridge agent name |
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-v, --verbose` | Emit verbose diagnostics | `false` |
+
+The command removes `~/.copilot/agents/<name>.md` only if the file contains `remote-agent` frontmatter. This safety check prevents accidental deletion of ordinary Copilot custom agents.
+
+**Examples:**
+
+```powershell
+a2a-ask catalog uninstall weather
+```
+
+---
+
+### `a2a-ask catalog installed`
+
+List installed A2A Copilot bridge agents.
+
+```powershell
+a2a-ask catalog installed [options]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--output <json\|text>` | Output format | `json` |
+| `--pretty` | Pretty-print JSON | `false` |
+| `-v, --verbose` | Emit verbose diagnostics | `false` |
+
+Scans `~/.copilot/agents/` for Markdown files with `remote-agent` frontmatter and returns installed bridges sorted alphabetically. JSON output includes the bridge name, catalog URL, entry id, card URL, install timestamp, and file path.
+
+**Examples:**
+
+```powershell
+a2a-ask catalog installed --output json --pretty
+a2a-ask catalog installed --output text
+```
+
+---
+
+### `a2a-ask catalog sync [name]`
+
+Refresh installed A2A Copilot bridges from their agent cards.
+
+```powershell
+a2a-ask catalog sync [name] [options]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `[name]` | Optional installed bridge name to sync; omit to sync all installed bridges |
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--output <json\|text>` | Output format | `json` |
+| `--pretty` | Pretty-print JSON | `false` |
+| `-v, --verbose` | Emit verbose card-fetch telemetry to stderr | `false` |
+
+The command re-fetches each bridge's agent card, uses `If-None-Match` when a stored ETag exists, compares hashes to detect drift, and updates only the generated section between `<!-- a2a:begin-generated -->` and `<!-- a2a:end-generated -->`.
+
+**Examples:**
+
+```powershell
+a2a-ask catalog sync --output json --pretty
+a2a-ask catalog sync weather --output text
+a2a-ask catalog sync weather -v --output text
+```
+
+---
+
 ### `a2a-ask send <url>`
 
 Send a message to an A2A agent and wait for the response.

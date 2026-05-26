@@ -29,6 +29,10 @@ a2a-ask stream https://agent.example.com --message "Generate a report" --output 
 | `a2a-ask discover <url>` | Fetch and display an agent card |
 | `a2a-ask catalog list <target>` | List A2A agents available in a catalog |
 | `a2a-ask catalog show <target>` | Resolve one A2A agent from a catalog |
+| `a2a-ask catalog install <target>` | Install a catalog agent as a Copilot CLI custom agent |
+| `a2a-ask catalog uninstall <name>` | Remove an installed A2A Copilot bridge |
+| `a2a-ask catalog installed` | List installed A2A Copilot bridge agents |
+| `a2a-ask catalog sync [name]` | Refresh installed A2A Copilot bridges from agent cards |
 | `a2a-ask send <url>` | Send a message to an agent |
 | `a2a-ask stream <url>` | Stream a response or subscribe to task events |
 | `a2a-ask task get <url>` | Get current task status (for polling) |
