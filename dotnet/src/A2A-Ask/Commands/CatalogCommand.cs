@@ -450,7 +450,7 @@ public static class CatalogCommand
                         }
 
                         var catalogTarget = TryExtractCatalogTarget(markdown)
-                            ?? $"{EncodeTargetComponent(bridge.Frontmatter.EntryId)}@{bridge.Frontmatter.Catalog}";
+                            ?? $"{EncodeTargetComponent(fetchedCard.Card.Name)}@{bridge.Frontmatter.Catalog}";
                         var displayName = TryExtractDisplayName(markdown)
                             ?? fetchedCard.Card.Name;
                         var updatedMetadata = new BridgeRemoteAgentMetadata(
@@ -578,7 +578,7 @@ public static class CatalogCommand
         {
             1 => matches[0].Agent,
             > 1 => throw new InvalidOperationException(
-                $"Multiple registered catalogs matched '{agentName}': {string.Join(", ", matches.Select(match => $"{EncodeTargetComponent(match.Agent.EntryId)}@{EncodeTargetComponent(match.Alias)}"))}."),
+                $"Multiple registered catalogs matched '{agentName}': {string.Join(", ", matches.Select(match => $"{EncodeTargetComponent(match.Agent.DisplayName)}@{EncodeTargetComponent(match.Alias)}"))}."),
             _ when lookups.Any(lookup => lookup.Error != null) => throw new InvalidOperationException(
                 $"No A2A agent matching '{agentName}' was found. Some catalogs could not be reached: {string.Join(", ", lookups.Where(lookup => lookup.Error != null).Select(lookup => lookup.Alias).OrderBy(alias => alias, StringComparer.OrdinalIgnoreCase))}."),
             _ => throw new InvalidOperationException(
@@ -660,7 +660,7 @@ public static class CatalogCommand
                 var agent = await resolver.ResolveAgentAsync(resolvedCatalogReference, catalogTarget.AgentName, cancellationToken);
                 return new InstallResolution(
                     agent,
-                    $"{EncodeTargetComponent(agent.EntryId)}@{EncodeTargetComponent(catalogTarget.CatalogAlias!)}");
+                    $"{EncodeTargetComponent(agent.DisplayName)}@{EncodeTargetComponent(catalogTarget.CatalogAlias!)}");
             }
             case DirectUrl directUrl:
                 return new InstallResolution(
