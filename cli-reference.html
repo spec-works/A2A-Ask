@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>CLI Reference | A2A-Ask Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="CLI Reference | A2A-Ask Documentation ">
+      
+      
+      <link rel="icon" href="images/logo.svg">
+      <link rel="stylesheet" href="public/docfx.min.css">
+      <link rel="stylesheet" href="public/main.css">
+      <meta name="docfx:navrel" content="toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/spec-works/A2A-Ask/blob/master/docs/cli-reference.md/#L1">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="index.html">
+            <img id="logo" class="svg" src="images/logo.svg" alt="A2A-Ask">
+            A2A-Ask
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+
+      <div class="content">
+        <div class="actionbar">
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="cli-reference">CLI Reference</h1>
+
+<p>Complete command reference for the <code>a2a-ask</code> CLI tool.</p>
+<h2 id="installation">Installation</h2>
+<pre><code class="lang-bash">dotnet tool install --global SpecWorks.A2A-Ask
+</code></pre>
+<h2 id="global-options">Global Options</h2>
+<p>These options are available on all commands:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--output &lt;json\|text&gt;</code></td>
+<td>Output format</td>
+<td><code>json</code></td>
+</tr>
+<tr>
+<td><code>--pretty</code></td>
+<td>Pretty-print JSON output</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>-v, --verbose</code></td>
+<td>Verbose/debug output</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>Show version information</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>-?, -h, --help</code></td>
+<td>Show help</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="commands">Commands</h2>
+<h3 id="a2a-ask-discover-target"><code>a2a-ask discover &lt;target&gt;</code></h3>
+<p>Fetch and display an A2A agent card.</p>
+<pre><code class="lang-bash">a2a-ask discover &lt;target&gt; [options]
+</code></pre>
+<p><strong>Arguments:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;target&gt;</code></td>
+<td>Agent URL or <code>@agent@catalog</code> reference</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--well-known</code></td>
+<td>Append <code>/.well-known/agent-card.json</code> to the URL</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>--extended</code></td>
+<td>Fetch the extended (authenticated) agent card</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>--auth-token &lt;token&gt;</code></td>
+<td>Bearer token for authentication</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--auth-header &lt;key=value&gt;</code></td>
+<td>Custom auth header</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<pre><code class="lang-bash"># Discover an agent
+a2a-ask discover https://example.com/agents/my-agent --output text
+
+# Fetch extended card with authentication
+a2a-ask discover https://example.com/agents/my-agent --extended --auth-token &quot;my-token&quot;
+</code></pre>
+<hr>
+<h3 id="a2a-ask-catalog-list-target"><code>a2a-ask catalog list &lt;target&gt;</code></h3>
+<p>List A2A agents available in a catalog.</p>
+<pre><code class="lang-bash">a2a-ask catalog list &lt;target&gt; [options]
+</code></pre>
+<p><strong>Arguments:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;target&gt;</code></td>
+<td>Catalog URL, host/origin shorthand, or <code>@@catalog</code> reference</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--filter &lt;text&gt;</code></td>
+<td>Filter by entry id, display name, description, or tags</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<pre><code class="lang-bash">a2a-ask catalog list https://example.com/.well-known/ai-catalog.json
+a2a-ask catalog list @@catalog.example.com --filter weather
+</code></pre>
+<hr>
+<h3 id="a2a-ask-catalog-show-target"><code>a2a-ask catalog show &lt;target&gt;</code></h3>
+<p>Show one resolved A2A agent from a catalog.</p>
+<pre><code class="lang-bash">a2a-ask catalog show &lt;target&gt;
+</code></pre>
+<p><strong>Arguments:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;target&gt;</code></td>
+<td>Catalog URL, host/origin shorthand, <code>@@catalog</code>, or <code>@agent@catalog</code> target</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<pre><code class="lang-bash">a2a-ask catalog show @weather@catalog.example.com
+a2a-ask catalog show https://example.com/.well-known/ai-catalog.json
+</code></pre>
+<p>If the catalog contains multiple A2A agents, use <code>@agent@catalog</code> to choose one explicitly. Bare <code>@agent</code> targets are parsed, but Phase 1 still requires an explicit catalog host or URL.</p>
+<hr>
+<h3 id="a2a-ask-catalog-install-target"><code>a2a-ask catalog install &lt;target&gt;</code></h3>
+<p>Install a catalog agent as a Copilot CLI custom agent.</p>
+<pre><code class="lang-powershell">a2a-ask catalog install &lt;target&gt; [options]
+</code></pre>
+<p><strong>Arguments:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;target&gt;</code></td>
+<td><code>agent@catalog</code> reference or direct catalog URL</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--name &lt;name&gt;</code></td>
+<td>Override the generated Copilot agent name</td>
+<td>card name, kebab-cased</td>
+</tr>
+<tr>
+<td><code>--overwrite</code></td>
+<td>Replace an existing bridge file</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td>Print the generated bridge without writing it</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>--skip-auth-check</code></td>
+<td>Skip the authentication pre-flight warning</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>--output &lt;json\|text&gt;</code></td>
+<td>Output format for <code>--dry-run</code> results</td>
+<td><code>json</code></td>
+</tr>
+<tr>
+<td><code>--pretty</code></td>
+<td>Pretty-print JSON when combined with <code>--dry-run</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>-v, --verbose</code></td>
+<td>Emit verbose diagnostics</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>The command fetches the agent card, generates a bridge file with <code>remote-agent</code> frontmatter, and writes it to <code>~/.copilot/agents/&lt;name&gt;.md</code>. Reserved names are rejected, names are kebab-cased automatically, existing files require <code>--overwrite</code>, and agent cards with security schemes emit a warning unless you pass <code>--skip-auth-check</code>.</p>
+<p><strong>Examples:</strong></p>
+<pre><code class="lang-powershell">a2a-ask catalog install weather@myorg
+a2a-ask catalog install weather@myorg --dry-run --output text
+a2a-ask catalog install weather@myorg --dry-run --output json --pretty
+</code></pre>
+<hr>
+<h3 id="a2a-ask-catalog-uninstall-name"><code>a2a-ask catalog uninstall &lt;name&gt;</code></h3>
+<p>Remove an installed A2A Copilot bridge.</p>
+<pre><code class="lang-powershell">a2a-ask catalog uninstall &lt;name&gt;
+</code></pre>
+<p><strong>Arguments:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;name&gt;</code></td>
+<td>Installed Copilot bridge agent name</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-v, --verbose</code></td>
+<td>Emit verbose diagnostics</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>The command removes <code>~/.copilot/agents/&lt;name&gt;.md</code> only if the file contains <code>remote-agent</code> frontmatter. This safety check prevents accidental deletion of ordinary Copilot custom agents.</p>
+<p><strong>Examples:</strong></p>
+<pre><code class="lang-powershell">a2a-ask catalog uninstall weather
+</code></pre>
+<hr>
+<h3 id="a2a-ask-catalog-installed"><code>a2a-ask catalog installed</code></h3>
+<p>List installed A2A Copilot bridge agents.</p>
+<pre><code class="lang-powershell">a2a-ask catalog installed [options]
+</code></pre>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--output &lt;json\|text&gt;</code></td>
+<td>Output format</td>
+<td><code>json</code></td>
+</tr>
+<tr>
+<td><code>--pretty</code></td>
+<td>Pretty-print JSON</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>-v, --verbose</code></td>
+<td>Emit verbose diagnostics</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>Scans <code>~/.copilot/agents/</code> for Markdown files with <code>remote-agent</code> frontmatter and returns installed bridges sorted alphabetically. JSON output includes the bridge name, catalog URL, entry id, card URL, install timestamp, and file path.</p>
+<p><strong>Examples:</strong></p>
+<pre><code class="lang-powershell">a2a-ask catalog installed --output json --pretty
+a2a-ask catalog installed --output text
+</code></pre>
+<hr>
+<h3 id="a2a-ask-catalog-sync-name"><code>a2a-ask catalog sync [name]</code></h3>
+<p>Refresh installed A2A Copilot bridges from their agent cards.</p>
+<pre><code class="lang-powershell">a2a-ask catalog sync [name] [options]
+</code></pre>
+<p><strong>Arguments:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[name]</code></td>
+<td>Optional installed bridge name to sync; omit to sync all installed bridges</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--output &lt;json\|text&gt;</code></td>
+<td>Output format</td>
+<td><code>json</code></td>
+</tr>
+<tr>
+<td><code>--pretty</code></td>
+<td>Pretty-print JSON</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>-v, --verbose</code></td>
+<td>Emit verbose card-fetch telemetry to stderr</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>The command re-fetches each bridge's agent card, uses <code>If-None-Match</code> when a stored ETag exists, compares hashes to detect drift, and updates only the generated section between <code>&lt;!-- a2a:begin-generated --&gt;</code> and <code>&lt;!-- a2a:end-generated --&gt;</code>.</p>
+<p><strong>Examples:</strong></p>
+<pre><code class="lang-powershell">a2a-ask catalog sync --output json --pretty
+a2a-ask catalog sync weather --output text
+a2a-ask catalog sync weather -v --output text
+</code></pre>
+<hr>
+<h3 id="a2a-ask-send-url"><code>a2a-ask send &lt;url&gt;</code></h3>
+<p>Send a message to an A2A agent and wait for the response.</p>
+<pre><code class="lang-bash">a2a-ask send &lt;url&gt; [options]
+</code></pre>
+<p><strong>Arguments:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;url&gt;</code></td>
+<td>Agent endpoint URL</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Alias</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--message</code></td>
+<td><code>-m</code></td>
+<td>Message text to send</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--file</code></td>
+<td><code>-f</code></td>
+<td>File path to include as a message part</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--data</code></td>
+<td><code>-d</code></td>
+<td>Structured JSON data to include</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--task-id</code></td>
+<td><code>-t</code></td>
+<td>Continue an existing task (multi-turn)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--context-id</code></td>
+<td><code>-c</code></td>
+<td>Context ID for grouping interactions</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--message-id</code></td>
+<td></td>
+<td>Custom message ID</td>
+<td>auto UUID</td>
+</tr>
+<tr>
+<td><code>--accept</code></td>
+<td></td>
+<td>Accepted output modes (comma-separated media types)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--return-immediately</code></td>
+<td></td>
+<td>Don't wait for task completion</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>--history-length</code></td>
+<td></td>
+<td>Max history messages in response</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--save-artifacts</code></td>
+<td></td>
+<td>Directory to save file artifacts</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--auth-token</code></td>
+<td></td>
+<td>Bearer token</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--auth-header</code></td>
+<td></td>
+<td>Custom auth header (key=value)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--api-key</code></td>
+<td></td>
+<td>API key value</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--api-key-header</code></td>
+<td></td>
+<td>API key header name</td>
+<td>from card</td>
+</tr>
+<tr>
+<td><code>--binding</code></td>
+<td></td>
+<td>Protocol binding: auto, http, jsonrpc</td>
+<td><code>auto</code></td>
+</tr>
+<tr>
+<td><code>--a2a-version</code></td>
+<td></td>
+<td>A2A protocol version</td>
+<td><code>1.0</code></td>
+</tr>
+<tr>
+<td><code>--tenant</code></td>
+<td></td>
+<td>Tenant ID</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>At least one of <code>--message</code>, <code>--file</code>, or <code>--data</code> is required.</p>
+<p>Plain URLs are sent directly with no agent card fetch. Use <code>discover</code> when you need card metadata first, and use <code>--a2a-version 0.3</code> for older direct endpoints.</p>
+<p><strong>Examples:</strong></p>
+<pre><code class="lang-bash"># Simple message
+a2a-ask send https://example.com/agent -m &quot;What is the weather on Mars?&quot;
+
+# Multi-turn follow-up
+a2a-ask send https://example.com/agent -m &quot;Tell me more&quot; --task-id &quot;abc-123&quot;
+
+# Send with a file
+a2a-ask send https://example.com/agent -m &quot;Summarize this&quot; --file ./report.pdf
+
+# Send JSON data
+a2a-ask send https://example.com/agent -d '{&quot;key&quot;: &quot;value&quot;}'
+
+# With authentication
+a2a-ask send https://example.com/agent -m &quot;Hello&quot; --auth-token &quot;bearer-token&quot;
+</code></pre>
+<hr>
+<h3 id="a2a-ask-stream-url"><code>a2a-ask stream &lt;url&gt;</code></h3>
+<p>Send a message with streaming response, showing real-time progress updates.</p>
+<pre><code class="lang-bash">a2a-ask stream &lt;url&gt; [options]
+</code></pre>
+<p>Same arguments and options as <code>send</code>, plus:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--subscribe</code></td>
+<td>Subscribe to an existing task's events (requires <code>--task-id</code>)</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<pre><code class="lang-bash"># Stream a response
+a2a-ask stream https://example.com/agent -m &quot;Analyze this data&quot;
+
+# Subscribe to task events
+a2a-ask stream https://example.com/agent --task-id &quot;abc-123&quot; --subscribe
+</code></pre>
+<hr>
+<h3 id="a2a-ask-task-get-url"><code>a2a-ask task get &lt;url&gt;</code></h3>
+<p>Get the current state of a task (useful for polling).</p>
+<pre><code class="lang-bash">a2a-ask task get &lt;url&gt; --task-id &lt;id&gt; [options]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--task-id</code> (required)</td>
+<td>Task ID to query</td>
+</tr>
+<tr>
+<td><code>--history-length</code></td>
+<td>Max history messages to include</td>
+</tr>
+<tr>
+<td><code>--a2a-version</code></td>
+<td>Protocol version for direct URL calls</td>
+</tr>
+<tr>
+<td>Auth options</td>
+<td>Same as <code>send</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="a2a-ask-task-list-url"><code>a2a-ask task list &lt;url&gt;</code></h3>
+<p>List tasks with optional filtering.</p>
+<pre><code class="lang-bash">a2a-ask task list &lt;url&gt; [options]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--context-id</code></td>
+<td>Filter by context ID</td>
+</tr>
+<tr>
+<td><code>--status</code></td>
+<td>Filter by task state</td>
+</tr>
+<tr>
+<td><code>--page-size</code></td>
+<td>Results per page (default: 50)</td>
+</tr>
+<tr>
+<td><code>--page-token</code></td>
+<td>Pagination cursor token</td>
+</tr>
+<tr>
+<td><code>--a2a-version</code></td>
+<td>Protocol version for direct URL calls</td>
+</tr>
+<tr>
+<td>Auth options</td>
+<td>Same as <code>send</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="a2a-ask-task-cancel-url"><code>a2a-ask task cancel &lt;url&gt;</code></h3>
+<p>Cancel a running task.</p>
+<pre><code class="lang-bash">a2a-ask task cancel &lt;url&gt; --task-id &lt;id&gt; [options]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--task-id</code> (required)</td>
+<td>Task ID to cancel</td>
+</tr>
+<tr>
+<td><code>--a2a-version</code></td>
+<td>Protocol version for direct URL calls</td>
+</tr>
+<tr>
+<td>Auth options</td>
+<td>Same as <code>send</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="a2a-ask-auth-login-url"><code>a2a-ask auth login &lt;url&gt;</code></h3>
+<p>Interactively authenticate with an A2A agent using OAuth2 device code flow.</p>
+<pre><code class="lang-bash">a2a-ask auth login &lt;url&gt; [--client-id &lt;id&gt;] [--tenant &lt;id&gt;]
+</code></pre>
+<p>Reads the agent card's security schemes and runs the appropriate interactive authentication flow. The obtained token is stored for reuse. When a persisted client registration matches the agent's OAuth2 issuer, the CLI automatically uses that client ID and optional RFC 8707 resource.</p>
+<hr>
+<h3 id="a2a-ask-auth-register-client"><code>a2a-ask auth register-client</code></h3>
+<p>Register an OAuth2 client for automatic issuer matching.</p>
+<pre><code class="lang-bash">a2a-ask auth register-client --client-id &lt;id&gt; --issuer &lt;url&gt; [--resource &lt;url&gt;]
+</code></pre>
+<hr>
+<h3 id="a2a-ask-auth-list-clients"><code>a2a-ask auth list-clients</code></h3>
+<p>List registered OAuth2 clients.</p>
+<pre><code class="lang-bash">a2a-ask auth list-clients
+</code></pre>
+<hr>
+<h3 id="a2a-ask-auth-remove-client"><code>a2a-ask auth remove-client</code></h3>
+<p>Remove a registered OAuth2 client.</p>
+<pre><code class="lang-bash">a2a-ask auth remove-client --issuer &lt;url&gt; [--resource &lt;url&gt;]
+</code></pre>
+<hr>
+<h3 id="a2a-ask-version"><code>a2a-ask version</code></h3>
+<p>Display version information.</p>
+<pre><code class="lang-bash">a2a-ask version
+</code></pre>
+<h2 id="authentication-options">Authentication Options</h2>
+<p>All commands that communicate with agents support these auth options:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--auth-token &lt;token&gt;</code></td>
+<td>Bearer token for HTTP Bearer auth</td>
+</tr>
+<tr>
+<td><code>--auth-header &lt;key=value&gt;</code></td>
+<td>Custom authentication header</td>
+</tr>
+<tr>
+<td><code>--api-key &lt;key&gt;</code></td>
+<td>API key value</td>
+</tr>
+<tr>
+<td><code>--api-key-header &lt;header&gt;</code></td>
+<td>API key header name (defaults to agent card setting)</td>
+</tr>
+<tr>
+<td><code>--tenant &lt;id&gt;</code></td>
+<td>Tenant identifier</td>
+</tr>
+</tbody>
+</table>
+<h2 id="protocol-options">Protocol Options</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--binding &lt;binding&gt;</code></td>
+<td>Protocol binding: <code>auto</code>, <code>http</code>, <code>jsonrpc</code></td>
+<td><code>auto</code></td>
+</tr>
+<tr>
+<td><code>--a2a-version &lt;version&gt;</code></td>
+<td>A2A protocol version</td>
+<td><code>1.0</code></td>
+</tr>
+</tbody>
+</table>
+<p>For plain direct URLs, the CLI defaults to v1.0. When you know an older agent speaks v0.3, pass <code>--a2a-version 0.3</code> on <code>send</code>, <code>stream</code>, or <code>task</code> commands.</p>
+
+</article>
+
+        <div class="contribution d-print-none">
+          <a href="https://github.com/spec-works/A2A-Ask/blob/master/docs/cli-reference.md/#L1" class="edit-link">Edit this page</a>
+        </div>
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <a href='https://spec-works.github.io/'>SpecWorks Factory</a> | <a href='https://github.com/spec-works/A2A-Ask'>GitHub</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
